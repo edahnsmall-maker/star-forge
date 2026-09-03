@@ -47,6 +47,16 @@ during the build-screen spin. Each face carries its own depth instead.
 Coordinates: x/z in studs, y in plates (3 plates = 1 brick). Nose at z=0,
 tail at z=25.
 
+## Parts come from different sets
+
+Deliberately. A cockpit might be a Classic Space wedge, a City interceptor, a
+stone castle turret or a wizard's hat; wings might be swept plates, bat
+membrane or a rigged mast with canvas; engines might be ion nacelles or a
+pair of broomsticks. They mount the same way regardless, so anything combines
+with anything and the results are meant to look a bit mad.
+
+Newly unlocked options are badged NEW until he looks at them.
+
 ## Colour
 
 Each piece carries its real ABS colour and a *role*. The COLOR slot either

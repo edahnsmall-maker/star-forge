@@ -30,7 +30,7 @@ const {chromium}=require('playwright');
      (r.rate?'':'   (no defence fitted)'));
  const boss=await p.evaluate(()=>{
    const res={};
-   for(const d of [0,2,4]){
+   for(const d of [0,3,5]){
      ship.defense=d;if(ship.body<0){ship.body=1;ship.wings=3;ship.cockpit=0;ship.engine=2;ship.tail=1;}SPR.clear();level=3;chosenPower='shield';startMission();
      fly.picked=fly.goal;fly.bossSpawned=true;fly.invuln=99999;
      fly.boss={x:215,y:180,r:70,hp:5,maxHp:5,vx:0,vy:0,hitT:0,fireT:0,sway:0};
