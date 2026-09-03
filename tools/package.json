@@ -1,0 +1,12 @@
+{
+  "name": "star-forge-tools",
+  "private": true,
+  "description": "Headless checks for the game. Renders part sheets and plays the game to measure balance.",
+  "scripts": {
+    "sheets": "node sheet.js ../sheet-wings.png wings",
+    "play": "node play.js",
+    "balance": "node bot.js .",
+    "defense": "node defense.js"
+  },
+  "dependencies": { "playwright": "^1.40.0" }
+}
