@@ -13,9 +13,9 @@ const {chromium}=require('playwright');
   document.body.appendChild(o);
   const g=o.getContext('2d');g.setTransform(2,0,0,2,0,0);
   g.fillStyle='#0b1435';g.fillRect(0,0,1180,720);
-  const sets={cockpit:COCKPITS,wings:WINGS,body:BODIES,engine:ENGINES,defense:DEFENSES};
+  const sets={cockpit:COCKPITS,wings:WINGS,body:BODIES,engine:ENGINES,defense:DEFENSES,tail:TAILS};
   const list=sets[which];
-  ship.cockpit=0;ship.wings=1;ship.body=0;ship.engine=1;ship.theme=0;ship.defense=1;
+  ship.cockpit=0;ship.wings=1;ship.body=0;ship.engine=1;ship.tail=0;ship.theme=0;ship.defense=0;
   const cols=4,cw=1180/cols,ch=250;
   list.forEach((it,i)=>{
     ship[which]=i;SPR.clear();

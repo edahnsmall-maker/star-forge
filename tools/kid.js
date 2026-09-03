@@ -1,7 +1,7 @@
 const {chromium}=require('playwright');
 // A simple competent player: dodge the nearest threat, otherwise chase gems.
 const POLICY=`
- window.__step=function(){
+ window.__step=function(){ if(Math.random()<0.34){touchSteer=[-1,0,1][(Math.random()*3)|0];return;} if(Math.random()<0.2){return;}
    let steer=0, best=1e9, threat=null;
    for(const o of fly.obstacles){
      const dy=fly.shipY-o.y;
@@ -59,6 +59,5 @@ const run=async(url,label)=>{
  await b.close();return rows;
 };
 (async()=>{
- await run('file://'+process.argv[2]+'/before.html','BEFORE (previous commit)');
- await run('file://'+require('path').resolve(__dirname,'../index.html'),'AFTER (this change)');
+ await run('file://'+require('path').resolve(__dirname,'../index.html'),'SLOPPY PLAYER (approximating a six-year-old)');
 })();

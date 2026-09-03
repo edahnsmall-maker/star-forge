@@ -8,7 +8,7 @@ const {chromium}=require('playwright');
  const rows=await p.evaluate(()=>{
   const out=[];
   for(let d=0;d<DEFENSES.length;d++){
-    unlockPoints=10;ship.defense=d;ship.wings=3;ship.body=1;ship.engine=2;
+    unlockPoints=10;ship.defense=d;if(ship.body<0){ship.body=1;ship.wings=3;ship.cockpit=0;ship.engine=2;ship.tail=1;}ship.wings=3;ship.body=1;ship.engine=2;ship.tail=1;ship.cockpit=0;
     SPR.clear();chosenPower='shield';level=2;startMission();
     fly.shipX=215;fly.shipY=560;fly.invuln=99999;      // no crashing during the test
     const tagged=[];
@@ -31,8 +31,8 @@ const {chromium}=require('playwright');
  const boss=await p.evaluate(()=>{
    const res={};
    for(const d of [0,2,4]){
-     ship.defense=d;SPR.clear();level=3;chosenPower='shield';startMission();
-     fly.crystals=fly.goal;fly.bossSpawned=true;fly.invuln=99999;
+     ship.defense=d;if(ship.body<0){ship.body=1;ship.wings=3;ship.cockpit=0;ship.engine=2;ship.tail=1;}SPR.clear();level=3;chosenPower='shield';startMission();
+     fly.picked=fly.goal;fly.bossSpawned=true;fly.invuln=99999;
      fly.boss={x:215,y:180,r:70,hp:5,maxHp:5,vx:0,vy:0,hitT:0,fireT:0,sway:0};
      fly.shipX=215;fly.shipY=560;
      let f=0;for(;f<600&&!fly.over;f++){updateFly();fly.invuln=99999;}

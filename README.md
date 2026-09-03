@@ -1,8 +1,9 @@
 # ⚡ Star Forge
 
 A LEGO-style spaceship builder and side-on flying game, built for a
-six-year-old. Build a ship out of bricks, fit it with defence, fly a
-mission, unlock more parts.
+six-year-old. You start with an empty baseplate and build a ship one part at a time --
+hull, wings, cockpit, engine, tail, defence -- then fly a mission and unlock
+more parts.
 
 **Play it:** https://edahnsmall-maker.github.io/star-forge/
 
@@ -21,12 +22,16 @@ optional twists: per-corner top heights (which gives slopes), a tapered top
 gun barrels). Rectangles give bricks; swept quads give wedge plates; 12-gons
 give round plates and cylinders.
 
+**Parts change how it flies.** Engine power sets speed, the tail sets turn
+rate, and defence decides what you can shoot. Mission length and defence
+balance were both set from measured play, not by feel.
+
 **Parts mount, they don't just sit near each other.** Every hull narrows to
 the same width at z=7 and z=18, so any cockpit and any engine mate with any
 hull. Hulls declare their own `halfW`, and wings are authored from x=0
 outward and shifted onto whatever edge they find — so a wing sits flush on a
-narrow hull and a wide one alike. Defence mounts the same way, off a
-`defY`/`defZ` the hull declares.
+narrow hull and a wide one alike. Defence and tails mount the same way, off a
+`defY`/`defZ` and `tailY`/`tailZ` the hull declares.
 
 **Lighting is baked, not live.** A key light, a cool fill, and a specular
 lobe off the half-vector, evaluated per face against its own normal. Faces

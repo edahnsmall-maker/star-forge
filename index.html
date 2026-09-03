@@ -232,6 +232,8 @@ function drawPieces(c,pieces,TH,yaw){
 const SPR=new Map();
 function makeSprite(pieces,TH,yaw,SS){
  SS=SS||2;
+ if(!pieces.length){const e=document.createElement('canvas');e.width=e.height=1;
+   return{cv:e,ox:0,oy:0,w:1,h:1,empty:true};}
  const cs=Math.cos(yaw),sn=Math.sin(yaw);
  let ax=1e9,bx2=-1e9,ay=1e9,by=-1e9;
  for(const p of pieces)for(const v of pieceGeom(p).V){const q=prj(v,cs,sn);
@@ -400,7 +402,7 @@ const COCKPITS=[
 
 const BODIES=[
  // narrow blue runabout with a grey spine
- {name:'Slim',defY:4,defZ:8.6,unlock:0,halfW:5,wingY:2,pieces:[
+ {name:'Slim',tailY:4,tailZ:15.2,defY:4,defZ:8.6,unlock:0,halfW:5,wingY:2,pieces:[
    bx(-3,7,6,11,0,4,BLUE,'hull'),
    ...mirX([px([[3,8],[5,10],[5,15],[3,17]],0,3,GREY,'light')]),
    bx(-1.2,7.6,2.4,9.6,4,1,GREY,'light'),
@@ -414,7 +416,7 @@ const BODIES=[
    ...mirX([bx(2.6,7.2,0.8,1.4,4,2,RED,'accent')]),
  ]},
  // broad white freighter with a bold azure deck and hazard stripes
- {name:'Wide',defY:4,defZ:8.4,unlock:0,halfW:7,wingY:2,pieces:[
+ {name:'Wide',tailY:4,tailZ:15,defY:4,defZ:8.4,unlock:0,halfW:7,wingY:2,pieces:[
    bx(-3,7,6,11,0,4,WHITE,'hull'),
    ...mirX([px([[3,8],[7,10],[7,15],[3,17]],0,4,WHITE,'hull')]),
    ...mirX([px([[3.1,9],[6.6,10.7],[6.6,14.3],[3.1,16]],4,1,AZ,'accent')]),
@@ -429,7 +431,7 @@ const BODIES=[
    ...mirX([bx(3.6,16,1.6,1.2,4,2,ORG,'accent')]),
  ]},
  // twin outboard nacelles hung off pylons
- {name:'Pods',defY:4,defZ:8.6,unlock:2,halfW:8,wingY:3,pieces:[
+ {name:'Pods',tailY:4,tailZ:15.2,defY:4,defZ:8.6,unlock:2,halfW:8,wingY:3,pieces:[
    bx(-3,7,6,11,0,4,DRED,'hull'),
    bx(-1.2,7.6,2.4,9.6,4,1,TAN,'light'),
    ...mirX([bx(1.4,8.4,1.4,1.4,4,1,BLACK,'dark'),
@@ -446,7 +448,7 @@ const BODIES=[
    bx(-1.2,9,2.4,3.4,5,2,BLACK,'dark'),
  ]},
  // an open bay with a glowing green reactor in it
- {name:'Core',defY:4,defZ:6.4,unlock:5,halfW:5,wingY:2,pieces:[
+ {name:'Core',tailY:4,tailZ:15.6,defY:4,defZ:6.4,unlock:5,halfW:5,wingY:2,pieces:[
    bx(-3,7,6,11,0,4,WHITE,'hull'),
    ...mirX([px([[3,8],[5,10],[5,15],[3,17]],0,3,LIME,'accent')]),
    ...mirX([bx(2.2,10,0.9,5,4,1,DGREY,'dark')]),
@@ -664,6 +666,48 @@ const DEFENSES=[
  ]},
 ];
 
+// Tails mount at the back of the deck. A bigger tail turns the ship faster.
+const TAILS=[
+ {name:'Fin',unlock:0,turn:1.15,pieces:[
+   px([[-0.55,0],[0.55,0],[0.55,4.4],[-0.55,4.4]],0,9,BLUE,'hull'),
+   px([[-0.6,0.2],[0.6,0.2],[0.6,2.2],[-0.6,2.2]],9,2,WHITE,'trim'),
+   bx(-1.6,0,3.2,1.6,0,2,DGREY,'dark'),
+   ...mirX([bx(0.6,0.4,1,1.2,2,1,RED,'accent')]),
+ ]},
+ {name:'Twin Fin',unlock:1,turn:1.28,pieces:[
+   bx(-2.6,0,5.2,1.8,0,2,DGREY,'dark'),
+   ...mirX([
+     px([[1,0.2],[2.1,0.2],[2.6,4],[1.5,4]],2,8,RED,'hull'),
+     px([[1.1,0.4],[2,0.4],[2.3,2],[1.4,2]],10,2,WHITE,'trim'),
+     bx(1.2,3.4,1.2,1,2,1,YEL,'accent'),
+   ]),
+ ]},
+ {name:'Sail',unlock:3,turn:1.06,pieces:[
+   bx(-3.4,0,6.8,1.6,0,2,BLACK,'dark'),
+   px([[-2.9,1.3],[2.9,1.3],[2.2,2.2],[-2.2,2.2]],2,11,ORG,'accent'),
+   px([[-2.5,1.4],[2.5,1.4],[1.95,2.1],[-1.95,2.1]],13,2,WHITE,'trim'),
+   px([[-1.2,1.35],[1.2,1.35],[1.0,2.15],[-1.0,2.15]],6,3,BLACK,'dark'),
+   ...mirX([cyl(2.4,0.7,0.5,2,3,TORG,'glass',{n:6}),
+            px([[1.4,0.3],[2.6,0.5],[2.6,1.3],[1.4,1.3]],2,3,ORG,'accent')]),
+ ]},
+ {name:'Boom',unlock:5,turn:1.34,pieces:[
+   bx(-1.4,0,2.8,1.8,0,3,DGREY,'dark'),
+   tube(0,3,0.85,0.6,6.4,SILVER,'light',{n:10}),
+   tube(0,3,1.05,5.4,0.9,AZ,'accent',{n:10}),
+   tube(0,3,0.6,6.8,0.8,TBLU,'glass',{n:10}),
+   ...mirX([
+     px([[0.7,1.4],[3,2.6],[3,4],[0.7,3.4]],2,2,AZ,'accent'),
+     cyl(2.5,3.2,0.45,4,1.4,TBLU,'glass',{n:6}),
+   ]),
+ ]},
+ {name:'Spines',unlock:7,turn:1.12,pieces:(function(){
+   const o=[bx(-1.5,0,3,5.4,0,2,DRED,'hull')];
+   for(let i=0;i<5;i++)
+     o.push(px([[-0.5,0.4+i*1],[0.5,0.4+i*1],[0.35,1.2+i*1],[-0.35,1.2+i*1]],
+       2,7-i*0.8,i%2?GOLD:DRED,i%2?'accent':'hull'));
+   return o;})()},
+];
+
 /* ---------- colour: keep the real piece colours, or repaint by role ---------- */
 const THEMES=[
  {name:'Classic',unlock:0,natural:true,glow:TYEL,flame:'#FFF3C0',flame2:'#4BA3E3'},
@@ -691,19 +735,27 @@ const place=(ps,dx,dy)=>ps.map(p=>{
  if((p.ax||'y')==='y'){q.pts=p.pts.map(a=>[a[0]+dx,a[1]]);q.y=p.y+dy;}
  else{q.pts=p.pts.map(a=>[a[0]+dx,a[1]+dy]);}
  return q;});
-const ship={cockpit:0,wings:1,body:0,engine:0,defense:0,theme:0};
+// -1 everywhere: an empty baseplate until he builds something
+const ship={body:-1,wings:-1,cockpit:-1,engine:-1,tail:-1,defense:-1,theme:0};
 function shipPieces(){
- const hull=BODIES[ship.body],w=WINGS[ship.wings].pieces,d=DEFENSES[ship.defense].pieces;
- return COCKPITS[ship.cockpit].pieces
-   .concat(hull.pieces)
-   .concat(w.length?mirX(place(w,hull.halfW,hull.wingY)):[])
-   .concat(d.length?placeZ(d,hull.defY,hull.defZ):[])
-   .concat(ENGINES[ship.engine].pieces);
+ const hull=ship.body>=0?BODIES[ship.body]:null;
+ const hw=hull?hull.halfW:4,wy=hull?hull.wingY:2,
+       dy=hull?hull.defY:4,dz=hull?hull.defZ:8.6,
+       ty=hull?hull.tailY:4,tz=hull?hull.tailZ:15.2;
+ let out=hull?hull.pieces.slice():[];
+ if(ship.cockpit>=0)out=out.concat(COCKPITS[ship.cockpit].pieces);
+ if(ship.wings>=0){const w=WINGS[ship.wings].pieces;
+   if(w.length)out=out.concat(mirX(place(w,hw,wy)));}
+ if(ship.engine>=0)out=out.concat(ENGINES[ship.engine].pieces);
+ if(ship.tail>=0)out=out.concat(placeZ(TAILS[ship.tail].pieces,ty,tz));
+ if(ship.defense>=0)out=out.concat(placeZ(DEFENSES[ship.defense].pieces,dy,dz));
+ return out;
 }
 function shipSprite(yaw,ss){
  const q=Math.round(yaw*24)/24;
- return sprite('s'+ship.cockpit+ship.wings+ship.body+ship.engine+ship.theme+ship.defense+
-   '_'+q.toFixed(3)+'_'+ss,shipPieces(),THEMES[ship.theme],q,ss);
+ return sprite('s'+[ship.cockpit,ship.wings,ship.body,ship.engine,ship.tail,
+   ship.defense,ship.theme].join(',')+'_'+q.toFixed(3)+'_'+ss,
+   shipPieces(),THEMES[ship.theme],q,ss);
 }
 // how many device pixels one model unit will actually occupy
 const bakeSS=s=>Math.max(2,Math.min(6,Math.ceil(s*(DPR||1)*1.15)));
@@ -723,8 +775,9 @@ function thruster(c,x,y,r,t,C){if(t<=0)return;
   c.restore();}
 function drawShip(c,x,y,s,t=0.6,yaw=0){
  const sp=shipSprite(yaw,bakeSS(s)),pal=THEMES[ship.theme];
+ if(sp.empty)return;
  c.save();c.translate(x,y);c.scale(s,s);
- if(t>0){const cs=Math.cos(yaw),sn=Math.sin(yaw);
+ if(t>0&&ship.engine>=0){const cs=Math.cos(yaw),sn=Math.sin(yaw);
    for(const n of ENGINES[ship.engine].nozzles){
      const q=prj([n.x*STUD,n.y*PLATE-CY,n.z*STUD-CZ],cs,sn);
      thruster(c,q[0],q[1],n.r,t,pal);}}
@@ -783,20 +836,26 @@ function drawVignette(){
 }
 
 const SLOTS=[
- {key:'cockpit',label:'COCKPIT',list:COCKPITS},{key:'wings',label:'WINGS',list:WINGS},
- {key:'body',label:'HULL',list:BODIES},{key:'engine',label:'ENGINE',list:ENGINES},
+ {key:'body',label:'HULL',list:BODIES},
+ {key:'wings',label:'WINGS',list:WINGS},
+ {key:'cockpit',label:'COCKPIT',list:COCKPITS},
+ {key:'engine',label:'ENGINE',list:ENGINES},
+ {key:'tail',label:'TAIL',list:TAILS},
  {key:'defense',label:'DEFENSE',list:DEFENSES},
  {key:'theme',label:'COLOR',list:THEMES}];
+const NEEDED=['body','wings','cockpit','engine','tail','defense'];
+const missingSlot=()=>SLOTS.find(s=>NEEDED.indexOf(s.key)>=0&&ship[s.key]<0);
 let activeSlot=0,bob=0,buildYaw=0.35,yawSpin=0.004,dragging=false,dragX=0,dragged=false;
 const isUnlocked=it=>unlockPoints>=(it.unlock||0);
 function cycleSlot(i,dir){const s=SLOTS[i],n=s.list.length;let idx=ship[s.key];
+  if(idx<0)idx=dir>0?-1:0;                       // first press fits the first part
   for(let k=0;k<n;k++){idx=(idx+dir+n)%n;if(isUnlocked(s.list[idx]))break;}
   ship[s.key]=idx;SPR.clear();clackSound();buildUI();}
 function selectSlot(i){activeSlot=i;scrollSound();buildUI();}
 function lockHint(slot){const l=slot.list.find(it=>!isUnlocked(it));return l?'🔒 Lv '+((l.unlock||0)+1):'✓ all unlocked';}
 function buildUI(){
  if(scene!==SCENE.BUILD)return;
- const slot=SLOTS[activeSlot],cur=slot.list[ship[slot.key]],TC=THEMES[ship.theme];
+ const slot=SLOTS[activeSlot],cur=ship[slot.key]>=0?slot.list[ship[slot.key]]:null,TC=THEMES[ship.theme];
  const hs=hiScore>0?'<span style="color:#F2CD37">★ '+hiScore+'</span>':'';
  ui.innerHTML=
  '<div style="position:absolute;top:0;left:0;right:0;padding:18px 18px 10px;display:flex;justify-content:space-between;align-items:center">'+
@@ -808,32 +867,39 @@ function buildUI(){
  '</div>'+
  '<div style="position:absolute;top:74px;left:0;right:0;display:flex;justify-content:center;gap:6px;flex-wrap:wrap;padding:0 10px">'+
    SLOTS.map((s,i)=>'<button class="slot-tab pe" data-i="'+i+'" style="'+
-     'background:'+(i===activeSlot?'#F2CD37':'#2C4257')+';color:'+(i===activeSlot?'#1B2A34':'#9DB4C6')+';'+
-     'border:none;border-radius:8px;padding:8px 13px;font-size:12px;font-weight:bold;letter-spacing:1px;'+
+     'background:'+(i===activeSlot?'#F2CD37':(NEEDED.indexOf(s.key)>=0&&ship[s.key]<0?'#3A2E33':'#2C4257'))+';'+
+     'color:'+(i===activeSlot?'#1B2A34':(NEEDED.indexOf(s.key)>=0&&ship[s.key]<0?'#B08894':'#9DB4C6'))+';'+
+     'border:none;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:bold;letter-spacing:0.5px;'+
      'cursor:pointer;box-shadow:0 3px 0 '+(i===activeSlot?'#a8871c':'#1B2A34')+';transition:all .1s">'+
-     s.label+'</button>').join('')+
+     s.label+(NEEDED.indexOf(s.key)>=0&&ship[s.key]<0?' •':'')+'</button>').join('')+
  '</div>'+
  '<div style="position:absolute;bottom:100px;left:0;right:0;display:flex;justify-content:center;align-items:center;gap:18px">'+
    '<button class="cyc pe" data-d="-1" style="background:#F4F4F4;border:none;border-radius:50%;'+
      'width:58px;height:58px;font-size:26px;color:#1B2A34;cursor:pointer;box-shadow:0 5px 0 #9aa3a8">◀</button>'+
    '<div style="text-align:center;min-width:150px">'+
      '<div style="color:#9DB4C6;font-size:11px;letter-spacing:2px">'+slot.label+'</div>'+
-     '<div style="color:#fff;font-size:22px;font-weight:bold;letter-spacing:1px;text-shadow:0 3px 0 #1B2A34">'+cur.name+'</div>'+
+     '<div style="color:'+(cur?'#fff':'#6B8398')+';font-size:22px;font-weight:bold;letter-spacing:1px;text-shadow:0 3px 0 #1B2A34">'+
+       (cur?cur.name:'— empty —')+'</div>'+
      '<div style="color:'+(TC.accent||TC.glow)+';font-size:11px;margin-top:3px">'+
-       (slot.key==='engine'?'⚡ Power '+cur.thrust.toFixed(1)+'  ':'')+
-       (slot.key==='defense'?'🛰 Fires every '+(cur.rate/60).toFixed(1)+'s  ':'')+
-       lockHint(slot)+'</div>'+
+       (cur&&slot.key==='engine'?'⚡ Power '+cur.thrust.toFixed(1)+'  ':'')+
+       (cur&&slot.key==='tail'?'🎯 Turning '+cur.turn.toFixed(2)+'x  ':'')+
+       (cur&&slot.key==='defense'?'🛰 Fires every '+(cur.rate/60).toFixed(1)+'s  ':'')+
+       (cur?lockHint(slot):'press ▶ to fit one')+'</div>'+
    '</div>'+
    '<button class="cyc pe" data-d="1" style="background:#F4F4F4;border:none;border-radius:50%;'+
      'width:58px;height:58px;font-size:26px;color:#1B2A34;cursor:pointer;box-shadow:0 5px 0 #9aa3a8">▶</button>'+
  '</div>'+
- '<div style="position:absolute;top:124px;left:0;right:0;text-align:center;color:#6B8398;font-size:11px;letter-spacing:1px">'+
+ '<div style="position:absolute;top:152px;left:0;right:0;text-align:center;color:#6B8398;font-size:11px;letter-spacing:1px">'+
    '↔ drag the ship to spin it</div>'+
  '<div style="position:absolute;bottom:18px;left:0;right:0;display:flex;justify-content:center">'+
-   '<button id="next" class="brick-btn green">⚡ CHOOSE POWER-UP</button></div>';
+   (function(){const m=missingSlot();
+     return m?'<button id="next" class="brick-btn" style="background:#44586B;color:#A9BCCB;'+
+       'box-shadow:0 5px 0 #2B3B49,0 8px 12px rgba(0,0,0,.45)">FIT A '+m.label+'</button>'
+      :'<button id="next" class="brick-btn green">⚡ CHOOSE POWER-UP</button>';})()+'</div>';
  ui.querySelectorAll('.slot-tab').forEach(b=>b.onclick=()=>selectSlot(+b.dataset.i));
  ui.querySelectorAll('.cyc').forEach(b=>b.onclick=()=>cycleSlot(activeSlot,+b.dataset.d));
- document.getElementById('next').onclick=goLoadout;
+ document.getElementById('next').onclick=()=>{const m=missingSlot();
+   if(m){activeSlot=SLOTS.indexOf(m);scrollSound();buildUI();}else goLoadout();};
 }
 function drawBuild(){
  const g=ctx.createLinearGradient(0,0,0,H);
@@ -847,13 +913,23 @@ function drawBuild(){
  bob+=0.04;
  if(!dragging)buildYaw+=yawSpin;
  const cx=W/2,cy=H*0.5,sc=Math.min(W,H)/360*1.05;
+ const empty=!shipPieces().length;
+ if(empty){                                      // an empty pad, waiting
+   ctx.save();ctx.textAlign='center';
+   ctx.fillStyle='#1B2A34';
+   ctx.font='bold '+Math.floor(Math.min(W,H)*0.052)+'px Trebuchet MS';
+   ctx.fillText('BUILD YOUR SHIP',cx,cy-165+3);
+   ctx.fillStyle='#B9CFE0';ctx.fillText('BUILD YOUR SHIP',cx,cy-165);
+   ctx.fillStyle='#7E97AB';ctx.font=Math.floor(Math.min(W,H)*0.032)+'px Trebuchet MS';
+   ctx.fillText('start with a hull',cx,cy-130);
+   ctx.restore();}
  // baseplate, then the model floating a little above it
  const bp=plateSprite(buildYaw,bakeSS(sc));
  ctx.save();ctx.translate(cx,cy+24);ctx.scale(sc,sc);
  ctx.globalAlpha=0.95;ctx.drawImage(bp.cv,bp.ox,bp.oy,bp.w,bp.h);ctx.globalAlpha=1;ctx.restore();
- // soft contact shadow
- ctx.save();ctx.globalAlpha=0.28;ctx.fillStyle='#000';
- ctx.beginPath();ctx.ellipse(cx,cy+22,74*sc*0.6,21*sc*0.6,0,0,7);ctx.fill();ctx.restore();
+ if(!empty){                                     // soft contact shadow
+   ctx.save();ctx.globalAlpha=0.28;ctx.fillStyle='#000';
+   ctx.beginPath();ctx.ellipse(cx,cy+22,74*sc*0.6,21*sc*0.6,0,0,7);ctx.fill();ctx.restore();}
  drawShip(ctx,cx,cy-14+Math.sin(bob)*5,sc,0.45+0.25*Math.sin(bob*2),buildYaw);
  drawVignette();
 }
@@ -910,15 +986,15 @@ const BOSS_BRICKS=[
 ];
 
 let fly={};
-// sized from measured collection rate: about 30s a level with defence fitted,
-// longer if you fly bare, and longer again for a six-year-old
-const missionGoal=lv=>85+lv*13;
+// a number a six-year-old can hold in his head, and see coming
+const missionGoal=lv=>Math.min(15,Math.round(7+lv*0.9));
 const isBossLevel=lv=>lv%3===0;
 function startMission(){
  audio();scene=SCENE.FLY;
  const goal=missionGoal(level);const sb=chosenPower==='speed'?1.35:1;
- const push=0.82+ENGINES[ship.engine].thrust*0.16;   // ⚡ Power is a real stat now
- fly={shipX:W/2,shipY:H*0.72,tilt:0,crystals:0,goal,
+ const push=0.82+(ship.engine>=0?ENGINES[ship.engine].thrust:1)*0.16;   // ⚡ Power is a real stat now
+ fly={shipX:W/2,shipY:H*0.72,tilt:0,crystals:0,picked:0,goal,
+  shields:[],turn:ship.tail>=0?TAILS[ship.tail].turn:1,
   obstacles:[],gems:[],particles:[],trail:[],boss:null,bolts:[],pulses:[],fireT:0,
   baseSpeed:(2.9+level*0.2)*sb*push,speed:(2.9+level*0.2)*sb*push,
   dist:0,spawnT:0,over:false,win:false,overT:0,
@@ -930,15 +1006,16 @@ function startMission(){
 let touchSteer=0;
 function buildFlyUI(){
  ui.innerHTML='<div style="position:absolute;top:0;left:0;right:0;padding:12px 16px;display:flex;justify-content:space-between;align-items:flex-start;color:#fff">'+
-   '<div><div style="font-size:11px;color:#9DB4C6;letter-spacing:1px">CRYSTALS</div>'+
-     '<div id="cz" style="font-size:24px;font-weight:bold;color:#56E646;text-shadow:0 3px 0 #1B2A34;transition:transform .1s">0 / '+fly.goal+'</div></div>'+
+   '<div><div style="font-size:11px;color:#9DB4C6;letter-spacing:1px">GEMS</div>'+
+     '<div id="cz" style="font-size:26px;font-weight:bold;color:#56E646;text-shadow:0 3px 0 #1B2A34;transition:transform .1s">0 / '+fly.goal+'</div>'+
+     '<div id="score" style="font-size:12px;color:#F2CD37;margin-top:1px">💎 0</div></div>'+
    '<div style="text-align:center"><div style="font-size:11px;color:#9DB4C6;letter-spacing:1px">LEVEL '+(isBossLevel(level)?'👹':'')+'</div>'+
      '<div style="font-size:24px;font-weight:bold;color:#AEEFEC;text-shadow:0 3px 0 #1B2A34">'+level+'</div>'+
      '<div id="combo" style="font-size:14px;color:#F2CD37;height:16px;text-shadow:0 2px 0 #1B2A34"></div></div>'+
    '<div style="text-align:right"><div style="font-size:11px;color:#9DB4C6;letter-spacing:1px">SHIELD</div>'+
      '<div id="sz" style="font-size:22px">'+'🛡'.repeat(fly.shield)+'</div>'+
-     '<div style="font-size:10px;color:'+DEFENSES[ship.defense].col+';letter-spacing:1px;margin-top:2px">'+
-       '🛰 '+DEFENSES[ship.defense].name.toUpperCase()+'</div></div></div>'+
+     '<div style="font-size:10px;color:'+(ship.defense>=0?DEFENSES[ship.defense].col:'#9DB4C6')+';letter-spacing:1px;margin-top:2px">'+
+       (ship.defense>=0?'🛰 '+DEFENSES[ship.defense].name.toUpperCase():'')+'</div></div></div>'+
  '<div class="pe" id="zL" style="position:absolute;left:0;top:60px;bottom:0;width:50%"></div>'+
  '<div class="pe" id="zR" style="position:absolute;right:0;top:60px;bottom:0;width:50%"></div>'+
  '<div style="position:absolute;bottom:14px;left:0;right:0;text-align:center;color:#4A6076;font-size:12px;letter-spacing:2px;pointer-events:none">◀ HOLD TO STEER ▶</div>';
@@ -958,7 +1035,7 @@ function updateFly(){
  if(keys['ArrowLeft']||keys['KeyA'])steer-=1;
  if(keys['ArrowRight']||keys['KeyD'])steer+=1;
  steer+=touchSteer;steer=Math.max(-1,Math.min(1,steer));
- fly.shipX+=steer*6.8;fly.shipX=Math.max(40,Math.min(W-40,fly.shipX));
+ fly.shipX+=steer*6.8*fly.turn;fly.shipX=Math.max(40,Math.min(W-40,fly.shipX));
  fly.tilt+=(steer*0.35-fly.tilt)*0.15;
  fly.speed=fly.baseSpeed+Math.min(2.5,fly.dist/2600);
  fly.dist+=fly.speed;
@@ -969,7 +1046,7 @@ function updateFly(){
  if(fly.trail.length>16)fly.trail.shift();
  for(const t of fly.trail)t.a*=0.9;
 
- if(isBossLevel(level)&&!fly.bossSpawned&&fly.crystals>=Math.floor(fly.goal*0.5)){
+ if(isBossLevel(level)&&!fly.bossSpawned&&fly.picked>=Math.floor(fly.goal*0.5)){
    fly.bossSpawned=true;
    fly.boss={x:W/2,y:-120,r:70,hp:3+Math.floor(level/2),maxHp:3+Math.floor(level/2),vx:1.6,vy:0.5,hitT:0,fireT:0,sway:0};
    beep(120,0.4,'sawtooth',0.2,40);
@@ -979,26 +1056,38 @@ function updateFly(){
  const every=Math.max(17,36-level*1.6);
  if(fly.spawnT%Math.floor(every)===0){
    const r=Math.random();
-   if(r<0.06){fly.gems.push(mkGem(60+Math.random()*(W-120),-30,true));}
-   else if(r<0.5){fly.gems.push(mkGem(60+Math.random()*(W-120)));}
-   else if(r<0.60){const bx=90+Math.random()*(W-180);for(let k=-1;k<=1;k++)fly.gems.push(mkGem(bx+k*46,-30-Math.abs(k)*24));}
+   if(r<0.035){fly.shields.push({x:70+Math.random()*(W-140),y:-30,spin:0});}
+   else if(r<0.075){fly.gems.push(mkGem(60+Math.random()*(W-120),-30,true));}
+   else if(r<0.235){fly.gems.push(mkGem(60+Math.random()*(W-120)));}
+   else if(r<0.275){const bx=90+Math.random()*(W-180);for(let k=-1;k<=1;k++)fly.gems.push(mkGem(bx+k*46,-30-Math.abs(k)*24));}
    else{const w=38+Math.random()*46;fly.obstacles.push({x:60+Math.random()*(W-120),y:-40,w,h:w*0.7,
-     hp:1+Math.floor(w/26),hitT:0,
+     hp:w<52?1:(w<70?2:3),hitT:0,
      spin:Math.random()*7,spinV:(Math.random()-.5)*0.04,rock:(Math.random()*ROCKS.length)|0,sc:w/74});}
  }
  if(level>=2&&fly.spawnT%Math.floor(every*5)===0){
    const dir=Math.random()<0.5?1:-1,sx=dir>0?70:W-70;
    for(let k=0;k<4;k++){const w=40+Math.random()*22;
-     fly.obstacles.push({x:sx+dir*k*58,y:-40-k*52,w,h:w*0.7,hp:1+Math.floor(w/26),hitT:0,
+     fly.obstacles.push({x:sx+dir*k*58,y:-40-k*52,w,h:w*0.7,hp:w<52?1:(w<70?2:3),hitT:0,
        spin:Math.random()*7,spinV:(Math.random()-.5)*0.05,
        rock:(Math.random()*ROCKS.length)|0,sc:w/74});}
  }
  if(level>=3&&fly.spawnT%Math.floor(every*4)===0){
    const gap=120+Math.random()*60,gx=80+Math.random()*(W-160-gap);
-   fly.obstacles.push({x:gx-40,y:-50,w:70,h:50,hp:3,hitT:0,spin:0,spinV:0.01,rock:0,sc:70/74});
-   fly.obstacles.push({x:gx+gap+40,y:-50,w:70,h:50,hp:3,hitT:0,spin:0,spinV:-0.01,rock:3,sc:70/74});
+   fly.obstacles.push({x:gx-40,y:-50,w:70,h:50,hp:2,hitT:0,spin:0,spinV:0.01,rock:0,sc:70/74});
+   fly.obstacles.push({x:gx+gap+40,y:-50,w:70,h:50,hp:2,hitT:0,spin:0,spinV:-0.01,rock:3,sc:70/74});
    fly.gems.push(mkGem(gx+gap/2,-50));
  }
+
+ for(const sp of fly.shields){
+   sp.y+=fly.speed;sp.spin+=0.06;
+   const dx=sp.x-fly.shipX,dy=sp.y-fly.shipY;
+   if(!sp.got&&dx*dx+dy*dy<52*52){
+     sp.got=true;fly.shield=Math.min(fly.maxShield+3,fly.shield+1);
+     powerSound();spawnRing(sp.x,sp.y,'#7FD8FF');spawnBurst(sp.x,sp.y,'#AEEFEC',14);
+     const sz=document.getElementById('sz');if(sz)sz.textContent='🛡'.repeat(fly.shield);
+   }
+ }
+ fly.shields=fly.shields.filter(sp=>!sp.got&&sp.y<H+40);
 
  const magnet=chosenPower==='magnet';
  for(const g of fly.gems){
@@ -1011,12 +1100,13 @@ function updateFly(){
        g.got=true;fly.combo++;fly.comboT=90;fly.maxCombo=Math.max(fly.maxCombo,fly.combo);
        const base=g.gold?5:1;
        const gain=fly.scorePerGem*base*(1+Math.min(4,Math.floor(fly.combo/3)));
-       fly.crystals+=gain;totalCrystals+=gain;
+       fly.crystals+=gain;totalCrystals+=gain;fly.picked+=g.gold?3:1;
        if(g.gold){goldSound();spawnBurst(g.x,g.y,'#F2CD37',22);spawnRing(g.x,g.y,'#F2CD37');}
        else{grabSound(Math.min(6,fly.combo));spawnBurst(g.x,g.y,'#56E646',12);spawnRing(g.x,g.y,'#9BF08A');}
-       const cz=document.getElementById('cz');if(cz){cz.textContent=fly.crystals+' / '+fly.goal;cz.style.transform='scale(1.3)';setTimeout(()=>cz.style.transform='scale(1)',110);}
+       const cz=document.getElementById('cz');if(cz){cz.textContent=fly.picked+' / '+fly.goal;cz.style.transform='scale(1.3)';setTimeout(()=>cz.style.transform='scale(1)',110);}
+       const sc2=document.getElementById('score');if(sc2)sc2.textContent='💎 '+fly.crystals;
        const cb=document.getElementById('combo');if(cb)cb.textContent=fly.combo>=2?'COMBO x'+fly.combo:'';
-       if(fly.crystals>=fly.goal&&!(fly.boss&&fly.boss.hp>0))winMission();
+       if(fly.picked>=fly.goal&&!(fly.boss&&fly.boss.hp>0))winMission();
      }
    }
  }
@@ -1029,7 +1119,7 @@ function updateFly(){
  }
  fly.obstacles=fly.obstacles.filter(o=>o.y<H+60);
 
- const D=DEFENSES[ship.defense];
+ const D=ship.defense>=0?DEFENSES[ship.defense]:{rate:0};
  if(D.rate){
    fly.fireT++;
    if(fly.fireT%D.rate===0){
@@ -1048,7 +1138,8 @@ function updateFly(){
    if(--o.hp<=0){
      o.dead=true;spawnBurst(o.x,o.y,'#A08868',26);spawnRing(o.x,o.y,'#DEC69C');
      beep(150,0.16,'square',0.14,-70);fly.shake=Math.max(fly.shake,5);
-     if(Math.random()<0.45)fly.gems.push(mkGem(o.x,o.y));
+     if(Math.random()<0.22)fly.gems.push(mkGem(o.x,o.y));
+     else if(Math.random()<0.14)fly.shields.push({x:o.x,y:o.y,spin:0});
    }else o.hitT=6;
  };
  for(const b of fly.bolts){
@@ -1061,7 +1152,7 @@ function updateFly(){
      if(dx*dx+dy*dy<bs.r*bs.r){b.dead=true;bs.hp-=b.dmg;bs.hitT=8;bossHitSound();
        spawnBurst(b.x,b.y,'#FE8A18',10);
        if(bs.hp<=0){spawnBurst(bs.x,bs.y,'#F2CD37',50);fly.shake=16;fly.boss=null;
-         if(fly.crystals>=fly.goal)winMission();}}}
+         if(fly.picked>=fly.goal)winMission();}}}
  }
  for(const pu of fly.pulses){
    for(const o of fly.obstacles){
@@ -1073,7 +1164,7 @@ function updateFly(){
      if(Math.abs(d-pu.r)<fly.boss.r){pu.hitBoss=true;fly.boss.hp-=pu.dmg;fly.boss.hitT=8;
        bossHitSound();
        if(fly.boss.hp<=0){spawnBurst(fly.boss.x,fly.boss.y,'#F2CD37',50);fly.shake=16;
-         fly.boss=null;if(fly.crystals>=fly.goal)winMission();}}}
+         fly.boss=null;if(fly.picked>=fly.goal)winMission();}}}
  }
  fly.bolts=fly.bolts.filter(b=>!b.dead&&b.y>-30&&b.x>-30&&b.x<W+30);
  fly.obstacles=fly.obstacles.filter(o=>!o.dead);
@@ -1134,6 +1225,7 @@ function drawFly(){
 
  for(const g of fly.gems){if(!g.got)drawCrystal(g.x,g.y,g.r,g.spin,g.gold);}
  for(const o of fly.obstacles)drawRock(o);
+ for(const sp of fly.shields)drawShieldPickup(sp);
  if(fly.boss)drawBoss(fly.boss);
 
  ctx.save();ctx.globalCompositeOperation='lighter';
@@ -1187,7 +1279,7 @@ function drawFly(){
        ctx.fillText('SHIP DOWN!',W/2,H*0.36+4);
        ctx.fillStyle='#C91A09';ctx.fillText('SHIP DOWN!',W/2,H*0.36);
        ctx.fillStyle='#fff';ctx.font=Math.floor(W*0.034)+'px Trebuchet MS';
-       ctx.fillText('Got '+fly.crystals+' of '+fly.goal+' — try again!',W/2,H*0.44);}
+       ctx.fillText('Got '+fly.picked+' of '+fly.goal+' gems — try again!',W/2,H*0.44);}
      ctx.fillStyle='#F2CD37';ctx.font=Math.floor(W*0.026)+'px Trebuchet MS';
      ctx.fillText('★ Best: '+hiScore+' crystals · Lv '+hiLevel+' · combo x'+hiCombo,W/2,H*0.55);
      if(fly.overT>40&&Math.floor(fly.overT/30)%2===0){ctx.fillStyle='#fff';
@@ -1235,6 +1327,28 @@ function drawCrystal(x,y,r,spin,gold){
  ctx.restore();
 }
 const ROCKSPR=[];
+// a trans-blue shield brick -- reads as "grab me", not as a rock
+function drawShieldPickup(sp){
+ const b=0.75+0.25*Math.sin(sp.spin*2.4);
+ ctx.save();ctx.translate(sp.x,sp.y);
+ ctx.save();ctx.globalCompositeOperation='lighter';ctx.globalAlpha=0.42*b;
+ ctx.drawImage(haloImg('#7FD8FF'),-38,-38,76,76);ctx.restore();
+ ctx.rotate(Math.sin(sp.spin)*0.28);
+ const R=13;
+ ctx.globalAlpha=0.9;
+ ctx.fillStyle=shade('#7FD8FF',-0.15);
+ ctx.beginPath();ctx.moveTo(0,-R);ctx.lineTo(R*0.85,-R*0.45);
+ ctx.lineTo(R*0.7,R*0.55);ctx.lineTo(0,R);ctx.lineTo(-R*0.7,R*0.55);
+ ctx.lineTo(-R*0.85,-R*0.45);ctx.closePath();ctx.fill();
+ ctx.globalAlpha=1;
+ ctx.strokeStyle=shade('#7FD8FF',-0.45);ctx.lineWidth=1.4;ctx.lineJoin='round';ctx.stroke();
+ ctx.fillStyle='#F4F4F4';
+ ctx.fillRect(-R*0.17,-R*0.55,R*0.34,R*1.1);
+ ctx.fillRect(-R*0.5,-R*0.17,R*1.0,R*0.34);
+ ctx.fillStyle='rgba(255,255,255,'+(0.45+0.35*b)+')';
+ ctx.beginPath();ctx.ellipse(-R*0.3,-R*0.42,R*0.16,R*0.3,0.3,0,7);ctx.fill();
+ ctx.restore();
+}
 function drawRock(o){
  let s=ROCKSPR[o.rock];
  if(!s)s=ROCKSPR[o.rock]=makeSprite(ROCKS[o.rock],null,0.45);

@@ -13,7 +13,7 @@ const POLICY=require('fs').readFileSync(process.argv[2]+'/bot.js','utf8')
     for(const def of [0,2]){
       let at30=0,at60=0,hits=0;const N=6;
       for(let i=0;i<N;i++){
-        ship.cockpit=0;ship.wings=1;ship.body=0;ship.engine=1;ship.theme=0;ship.defense=def;
+        ship.cockpit=0;ship.wings=1;ship.body=0;ship.engine=1;ship.tail=0;ship.theme=0;ship.defense=def;
         chosenPower='shield';level=lv;startMission();
         fly.goal=999999;                       // let it run, just watch the rate
         let sh=fly.shield;
