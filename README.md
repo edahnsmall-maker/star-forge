@@ -46,6 +46,14 @@ wall and an off-centre radial top. All of it is computed once per viewing
 angle into a cached sprite, so the runtime cost of a detailed ship is one
 blit.
 
+**Contact shadows are baked in.** Each sprite is rendered a second time as
+flat depth, and every pixel is darkened by how much of the hemisphere around
+it is blocked by something nearer -- real screen-space ambient occlusion,
+computed once per viewing angle at a fixed resolution budget so a 6x desktop
+bake costs the same as a 2x flight one. The model also throws a squashed,
+blurred silhouette of itself onto the baseplate. Between them they are most
+of what separates a render from a photograph of a set.
+
 **Faces sort individually.** One sort order per whole piece can't describe a
 wing plate that stretches from nose to tail, which made pieces pop in and out
 during the build-screen spin. Each face carries its own depth instead.

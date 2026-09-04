@@ -162,7 +162,7 @@ function studCovered(all,p,sx,sz){const top=p.y+p.h;
    if(sx>bb[0]&&sx<bb[2]&&sz>bb[1]&&sz<bb[3])return true;}
  return false;}
 
-function drawPieces(c,pieces,TH,yaw){
+function drawPieces(c,pieces,TH,yaw,depthPass){
  const cs=Math.cos(yaw),sn=Math.sin(yaw);
  const depth=v=>TILT*v[1]+RISE*(-v[0]*sn+v[2]*cs);
  const items=[];
@@ -195,6 +195,27 @@ function drawPieces(c,pieces,TH,yaw){
  items.sort((a,b)=>a.d-b.d);
  c.lineJoin='round';
  const sr=STUD*0.3,sh=STUD*0.23;
+ if(depthPass){                       // flat greys, nearest white -- an AO input
+   const lo=items.length?items[0].d:0,hi=items.length?items[items.length-1].d:1;
+   const span=Math.max(1e-6,hi-lo);
+   for(const it of items){
+     const v=Math.round(28+227*(it.d-lo)/span);
+     c.fillStyle='rgb('+v+','+v+','+v+')';
+     if(it.stud){
+       const q=prj(it.stud,cs,sn),yt=q[1]-RISE*sh;
+       c.beginPath();c.ellipse(q[0],q[1],sr,sr*TILT,0,0,7);c.fill();
+       c.fillRect(q[0]-sr,yt,sr*2,q[1]-yt);
+       c.beginPath();c.ellipse(q[0],yt,sr,sr*TILT,0,0,7);c.fill();
+     }else{
+       const f=it.f,g=it.g;
+       c.beginPath();
+       for(let i=0;i<f.i.length;i++){const q=prj(g.V[f.i[i]],cs,sn);
+         i?c.lineTo(q[0],q[1]):c.moveTo(q[0],q[1]);}
+       c.closePath();c.fill();
+     }
+   }
+   return;
+ }
  for(const it of items){
    if(it.clear)c.globalAlpha=0.62;
    if(it.stud){
@@ -277,7 +298,51 @@ function makeSprite(pieces,TH,yaw,SS){
  const g=cv.getContext('2d');g.setTransform(SS,0,0,SS,0,0);
  g.translate(-ax+pad,-ay+pad);
  drawPieces(g,pieces,TH,yaw);
+ applyAO(cv,pieces,TH,yaw,SS,ax,ay,pad);
  return{cv,ox:ax-pad,oy:ay-pad,w,h};
+}
+// Contact shadows. Render the same geometry once more as flat depth, then
+// darken each pixel by how much of the hemisphere around it is blocked by
+// something nearer. This is what a photo has in every crevice and under every
+// stud, and its absence is most of what read as "computer graphics".
+const AO_DIRS=(function(){const d=[];for(let i=0;i<10;i++){const a=i/10*Math.PI*2;
+ d.push([Math.cos(a),Math.sin(a)]);}return d;})();
+function applyAO(cv,pieces,TH,yaw,SS,ax,ay,pad){
+ // AO is low-frequency, so compute it at a fixed budget instead of scaling
+ // with the sprite -- a 6x desktop bake costs the same as a 2x one
+ const AOMAX=340,k=Math.min(0.5,AOMAX/Math.max(cv.width,cv.height));
+ const dw=Math.max(2,Math.round(cv.width*k)),dh=Math.max(2,Math.round(cv.height*k));
+ const dcv=document.createElement('canvas');dcv.width=dw;dcv.height=dh;
+ const dg=dcv.getContext('2d',{willReadFrequently:true});
+ dg.setTransform(SS*k,0,0,SS*k,0,0);dg.translate(-ax+pad,-ay+pad);
+ drawPieces(dg,pieces,TH,yaw,true);
+ let src;try{src=dg.getImageData(0,0,dw,dh).data;}catch(e){return;}
+ const R=Math.max(2,Math.round(Math.min(dw,dh)*0.026)),BIAS=9;
+ const ao=document.createElement('canvas');ao.width=dw;ao.height=dh;
+ const ag=ao.getContext('2d');
+ const out=ag.createImageData(dw,dh),o=out.data;
+ for(let y=0;y<dh;y++)for(let x=0;x<dw;x++){
+   const i=(y*dw+x)*4;
+   if(src[i+3]===0)continue;                    // nothing here
+   const d0=src[i];let occ=0,n=0;
+   for(let r=1;r<=2;r++){const rad=R*(r===1?0.45:1);
+     for(const dir of AO_DIRS){
+       const sx=(x+dir[0]*rad)|0,sy=(y+dir[1]*rad)|0;
+       if(sx<0||sy<0||sx>=dw||sy>=dh)continue;
+       const j=(sy*dw+sx)*4;n++;
+       if(src[j+3]===0)continue;
+       if(src[j]>d0+BIAS)occ+=Math.min(1,(src[j]-d0-BIAS)/17);
+     }}
+   if(!n)continue;
+   const a=Math.min(0.52,(occ/n)*1.7);
+   o[i+3]=(a*255)|0;                            // black at that alpha = multiply
+ }
+ ag.putImageData(out,0,0);
+ const c2=cv.getContext('2d');
+ c2.save();c2.setTransform(1,0,0,1,0,0);
+ c2.globalCompositeOperation='multiply';
+ c2.drawImage(ao,0,0,cv.width,cv.height);       // upscale doubles as the blur
+ c2.restore();
 }
 function sprite(key,pieces,TH,yaw,SS){
  let s=SPR.get(key);if(s)return s;
@@ -1097,6 +1162,17 @@ function drawShip(c,x,y,s,t=0.6,yaw=0){
  c.drawImage(sp.cv,sp.ox,sp.oy,sp.w,sp.h);
  c.restore();
 }
+// a black silhouette of the sprite, squashed onto the ground plane
+const SHADOW=new Map();
+function shadowOf(sp,key){
+ let sh=SHADOW.get(key);if(sh)return sh;
+ const c=document.createElement('canvas');c.width=sp.cv.width;c.height=sp.cv.height;
+ const g=c.getContext('2d');
+ g.drawImage(sp.cv,0,0);
+ g.globalCompositeOperation='source-in';g.fillStyle='#000';g.fillRect(0,0,c.width,c.height);
+ sh=c;SHADOW.set(key,sh);
+ if(SHADOW.size>60)SHADOW.clear();
+ return sh;}
 const BASEPLATE=[bx(-15,-6,30,31,-1,1,'#4B9C34')];
 function plateSprite(yaw,ss){const q=Math.round(yaw*24)/24;
  return sprite('bp_'+q.toFixed(3)+'_'+ss,BASEPLATE,null,q,ss);}
@@ -1302,9 +1378,19 @@ function drawBuild(){
  const bp=plateSprite(buildYaw,bakeSS(sc));
  ctx.save();ctx.translate(cx,cy+24);ctx.scale(sc,sc);
  ctx.globalAlpha=0.95;ctx.drawImage(bp.cv,bp.ox,bp.oy,bp.w,bp.h);ctx.globalAlpha=1;ctx.restore();
- if(!empty){                                     // soft contact shadow
-   ctx.save();ctx.globalAlpha=0.28;ctx.fillStyle='#000';
-   ctx.beginPath();ctx.ellipse(cx,cy+22,74*sc*0.6,21*sc*0.6,0,0,7);ctx.fill();ctx.restore();}
+ if(!empty){                                     // the model's own shadow on the plate
+   const q=Math.round(buildYaw*24)/24,ss=bakeSS(sc);
+   const sp=shipSprite(buildYaw,ss);
+   if(!sp.empty){
+     const shc=shadowOf(sp,'sh'+[ship.cockpit,ship.wings,ship.body,ship.engine,
+       ship.tail,ship.defense,ship.pilot].join(',')+q.toFixed(3)+ss);
+     ctx.save();ctx.globalAlpha=0.34;
+     ctx.translate(cx+10*sc,cy+30);ctx.transform(1,0,-0.45,0.30,0,0);ctx.scale(sc,sc);
+     ctx.filter='blur('+(2.2*sc).toFixed(1)+'px)';
+     ctx.drawImage(shc,sp.ox,sp.oy,sp.w,sp.h);
+     ctx.restore();
+   }
+ }
  drawShip(ctx,cx,cy-14+Math.sin(bob)*5,sc,0.45+0.25*Math.sin(bob*2),buildYaw);
  drawVignette();
 }
