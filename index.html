@@ -402,7 +402,7 @@ const COCKPITS=[
    bx(-1.6,-2.6,3.2,1.6,1,2,WHITE,'hull'),
  ]},
  // two red pods bridged over a cargo deck
- {name:'Twin Pod',unlock:4,pieces:[
+ {name:'Twin Pod',unlock:5,pieces:[
    px([[-4.6,10],[4.6,10],[3.4,1.6],[-3.4,1.6]],0,1,WHITE,'trim'),
    ...mirX([
      sl(1.2,0.2,3.2,2.2,1,5,'n',RED,'hull'),
@@ -430,7 +430,7 @@ const COCKPITS=[
    px([[-3.4,10],[3.4,10],[2.4,7.6],[-2.4,7.6]],0,1,DGREY,'dark'),
  ]},
  // a proper flying saucer: rim lights, legs, tractor emitter
- {name:'Saucer',unlock:6,pieces:[
+ {name:'Saucer',unlock:9,pieces:[
    cyl(0,3.6,6,0,1.6,SILVER,'light',{n:20}),
    cyl(0,3.6,5.1,1.6,2,LIME,'accent',{n:20}),
    cyl(0,3.6,4,3.6,1.6,SILVER,'light',{n:18}),
@@ -453,7 +453,7 @@ const COCKPITS=[
    px([[-3,10],[3,10],[2.2,8],[-2.2,8]],0,1,SILVER,'light'),
  ]},
  // a horned head with a jaw, teeth and a gold crest
- {name:'Dragon',unlock:8,pieces:[
+ {name:'Dragon',unlock:13,pieces:[
    px([[-4.6,8],[4.6,8],[2.6,-3],[-2.6,-3]],0,1,BLACK,'dark'),
    sl(-2.6,-3,5.2,3.6,1,4,'n',DRED,'hull'),
    bx(-3.2,0.6,6.4,4.4,1,6,RED,'hull'),
@@ -477,7 +477,7 @@ const COCKPITS=[
    ...strip(-0.45,-2.6,4,5,GOLD,DRED,0.85),
  ]},
  // a castle gatehouse: two towers, a wall, a portcullis, banners
- {name:'Castle',unlock:3,pieces:[
+ {name:'Castle',unlock:4,pieces:[
    px([[-5,10],[5,10],[3.6,0.6],[-3.6,0.6]],0,1,STONE,'light'),
    bx(-2.6,1.6,5.2,4.4,1,7,STONE,'light'),
    ...(function(){const o=[];for(let i=0;i<6;i++)
@@ -508,7 +508,7 @@ const COCKPITS=[
    ...strip(-0.45,-0.2,3,1,STONE,DGREY,0.9),
  ]},
  // a wizard tower: conical roof, stars, a balcony and a crystal ball
- {name:'Wizard',unlock:7,pieces:[
+ {name:'Wizard',unlock:16,pieces:[
    px([[-4.6,10],[4.6,10],[3.2,0.4],[-3.2,0.4]],0,1,DPURP,'hull'),
    cyl(0,4.4,3.4,1,7,DPURP,'hull',{n:14}),
    cyl(0,4.4,3.6,1,1.2,GOLD,'accent',{n:14}),
@@ -569,7 +569,7 @@ const BODIES=[
    ...mirX([bx(3.6,16,1.6,1.2,4,2,ORG,'accent')]),
  ]},
  // twin outboard nacelles hung off pylons
- {name:'Pods',tailY:4,tailZ:15.2,defY:4,defZ:8.6,unlock:2,halfW:8,wingY:3,pieces:[
+ {name:'Pods',tailY:4,tailZ:15.2,defY:4,defZ:8.6,unlock:3,halfW:8,wingY:3,pieces:[
    bx(-3,7,6,11,0,4,DRED,'hull'),
    bx(-1.2,7.6,2.4,9.6,4,1,TAN,'light'),
    ...mirX([bx(1.4,8.4,1.4,1.4,4,1,BLACK,'dark'),
@@ -586,7 +586,7 @@ const BODIES=[
    bx(-1.2,9,2.4,3.4,5,2,BLACK,'dark'),
  ]},
  // an open bay with a glowing green reactor in it
- {name:'Core',tailY:4,tailZ:15.6,defY:4,defZ:6.4,unlock:5,halfW:5,wingY:2,pieces:[
+ {name:'Core',tailY:4,tailZ:15.6,defY:4,defZ:6.4,unlock:8,halfW:5,wingY:2,pieces:[
    bx(-3,7,6,11,0,4,WHITE,'hull'),
    ...mirX([px([[3,8],[5,10],[5,15],[3,17]],0,3,LIME,'accent')]),
    ...mirX([bx(2.2,10,0.9,5,4,1,DGREY,'dark')]),
@@ -600,7 +600,7 @@ const BODIES=[
    ...mirX([tube(2.4,2,0.5,16.4,2,DGREY,'dark',{n:8})]),
  ]},
  // curtain wall, corner towers, a wooden courtyard
- {name:'Keep',unlock:4,halfW:5,wingY:2,tailY:5,tailZ:15,defY:5,defZ:8.6,pieces:[
+ {name:'Keep',unlock:6,halfW:5,wingY:2,tailY:5,tailZ:15,defY:5,defZ:8.6,pieces:[
    bx(-3,7,6,11,0,5,STONE,'light'),
    ...mirX([
      cyl(2.9,8.8,1.5,0,8,STONE,'light',{n:10}),
@@ -667,7 +667,7 @@ const WINGS=[
    px([[5.4,11.6],[7.4,12.4],[7.4,14.4],[5.4,14.4]],1,3,DGREY,'light'),
  ]},
  // red four-winger with white stripes and barrel tips
- {name:'Star-Four',unlock:5,pieces:[
+ {name:'Star-Four',unlock:7,pieces:[
    bx(0,8.4,2,9.2,0,6,RED,'hull'),
    bx(0.3,8.8,1.4,8.4,6,1,WHITE,'trim'),
    bx(1.6,9.2,1.6,2.2,3.4,3,BLACK,'dark'),
@@ -684,7 +684,7 @@ const WINGS=[
    cyl(3.6,16.4,0.5,2,1.4,TORG,'glass',{n:6}),
  ]},
  // alien tech: purple ring, lime beads, glowing inner nodes
- {name:'Halo',unlock:7,pieces:(function(){
+ {name:'Halo',unlock:11,pieces:(function(){
    const o=[bx(0,11.6,2.4,3,1,3,PURP,'hull'),
             bx(0.4,12,1.6,2.2,4,1,LIME,'accent')];
    for(let i=0;i<16;i++){const a=i/16*Math.PI*2;
@@ -694,7 +694,7 @@ const WINGS=[
      o.push(cyl(5.4+Math.cos(a)*2.4,13+Math.sin(a)*2.4,0.45,1.6,1.2,TGRN,'glass',{n:6}));}
    return o;})()},
  // three layers of flame
- {name:'Phoenix',unlock:9,pieces:[
+ {name:'Phoenix',unlock:15,pieces:[
    bx(0,8.4,1.8,9.4,0,5,DRED,'hull'),
    px([[0,8.4],[1.8,8.4],[7.6,10.4],[5,12]],4,1,YEL,'accent'),
    px([[0,11],[1.8,11],[8.6,13.4],[5.6,15.2]],2,1,ORG,'accent'),
@@ -705,7 +705,7 @@ const WINGS=[
      o.push(cyl(2.2+i*1.2,9.4+i*2.6,0.5,5,1.4,TORG,'glass',{n:6}));return o;})(),
  ]},
  // leathery membrane on purple finger-bones
- {name:'Bat',unlock:4,pieces:[
+ {name:'Bat',unlock:6,pieces:[
    bx(0,8.4,1.5,9,0,4,'#3A2A44','dark'),
    px([[0,8],[1.6,8],[6.4,9.4],[4.4,11],[1.6,10.2]],1,1,BATW,'dark'),
    px([[0,10.2],[1.6,10.2],[7.2,12.2],[5,13.8],[1.6,12.8]],1,1,BATW,'dark'),
@@ -719,7 +719,7 @@ const WINGS=[
    bx(0.2,8.8,1.1,8.2,4,1,PURP,'accent'),
  ]},
  // masts, canvas and a rigged yardarm
- {name:'Sails',unlock:6,pieces:[
+ {name:'Sails',unlock:12,pieces:[
    bx(0,8.6,1.8,8.6,0,4,WOOD,'dark'),
    bx(0.2,9,1.4,7.8,4,1,DWOOD,'dark'),
    cyl(1.9,12.4,0.5,4,13,WOOD,'dark',{n:8}),
@@ -757,7 +757,7 @@ const ENGINES=[
      bx(1.2,18.6,0.9,3,4,1,YEL,'accent'),
    ]),
  ],nozzles:[{x:-2.9,y:2,z:23.6,r:10},{x:2.9,y:2,z:23.6,r:10}]},
- {name:'Ion',unlock:3,thrust:1.6,pieces:[
+ {name:'Ion',unlock:4,thrust:1.6,pieces:[
    bx(-6.5,17.4,13,1.8,0,4,BLACK,'dark'),
    bx(-6.5,17.4,13,1.8,4,1,LIME,'accent'),
    ...mirX([
@@ -773,7 +773,7 @@ const ENGINES=[
    bx(-1,18.2,2,1.4,4,2,GRN,'accent'),
  ],nozzles:[{x:-4.4,y:2,z:23,r:7},{x:0,y:2,z:23,r:7},{x:4.4,y:2,z:23,r:7}]},
  // one enormous reactor bell
- {name:'Pulse',unlock:6,thrust:2,pieces:[
+ {name:'Pulse',unlock:10,thrust:2,pieces:[
    bx(-3.6,17.2,7.2,1.6,0,4,BLACK,'dark'),
    tube(0,2,4.4,17.6,5.4,PURP,'hull',{n:18}),
    tube(0,2,4.5,17.5,1,SILVER,'light',{n:18}),
@@ -785,7 +785,7 @@ const ENGINES=[
    ]),
    bx(-2,17.6,4,1.2,5,2,LAV,'accent'),
  ],nozzles:[{x:0,y:2,z:24,r:22}]},
- {name:'Quad',unlock:8,thrust:2.4,pieces:[
+ {name:'Quad',unlock:14,thrust:2.4,pieces:[
    bx(-7.6,17.4,15.2,1.8,0,4,DGREY,'dark'),
    bx(-7.6,17.4,15.2,1.8,4,1,ORG,'accent'),
    ...mirX([
@@ -801,7 +801,7 @@ const ENGINES=[
  ],nozzles:[{x:-6.2,y:2,z:23.2,r:7},{x:-2.3,y:2,z:23.2,r:7},
             {x:2.3,y:2,z:23.2,r:7},{x:6.2,y:2,z:23.2,r:7}]},
  // two broomsticks, bristles and all
- {name:'Broom',unlock:5,thrust:1.8,pieces:[
+ {name:'Broom',unlock:7,thrust:1.8,pieces:[
    bx(-2.6,17.4,5.2,1.8,0,4,DWOOD,'dark'),
    bx(-2.6,17.4,5.2,1.8,4,1,GOLD,'accent'),
    ...mirX([
@@ -847,7 +847,7 @@ const DEFENSES=[
    ]),
    bx(-0.7,2.4,1.4,1.2,4,2,LIME,'accent'),
  ]},
- {name:'Pulse',unlock:4,rate:50,dmg:2,ring:true,col:'#AEEFEC',
+ {name:'Pulse',unlock:6,rate:50,dmg:2,ring:true,col:'#AEEFEC',
   pieces:[
    cyl(0,1.8,2.6,0,1.6,DGREY,'dark',{n:14}),
    cyl(0,1.8,2.1,1.6,1.4,AZ,'accent',{n:14}),
@@ -856,7 +856,7 @@ const DEFENSES=[
      o.push(cyl(Math.cos(a)*2.4,1.8+Math.sin(a)*2.4,0.42,1.6,1.4,WHITE,'trim',{n:6}));}
      return o;})(),
  ]},
- {name:'Lance',unlock:6,rate:14,dmg:2,big:true,col:'#D9A6F0',
+ {name:'Lance',unlock:11,rate:14,dmg:2,big:true,col:'#D9A6F0',
   bolts:[{x:0,vx:0}],pieces:[
    bx(-1.6,0.4,3.2,3.4,0,3,BLACK,'dark'),
    tube(0,4,0.95,-4.4,6,SILVER,'light',{n:12}),
@@ -866,7 +866,7 @@ const DEFENSES=[
    ...mirX([bx(1.4,0.8,0.7,2.4,1,3,LAV,'accent')]),
  ]},
  // a trebuchet. Slow, heavy, and it throws a rock.
- {name:'Catapult',unlock:5,rate:34,dmg:2,col:'#D9A05B',
+ {name:'Catapult',unlock:8,rate:34,dmg:2,col:'#D9A05B',
   bolts:[{x:0,vx:0}],pieces:[
    bx(-2.1,0.4,4.2,3.6,0,2,DWOOD,'dark'),
    ...mirX([
@@ -891,7 +891,7 @@ const TAILS=[
    bx(-1.6,0,3.2,1.6,0,2,DGREY,'dark'),
    ...mirX([bx(0.6,0.4,1,1.2,2,1,RED,'accent')]),
  ]},
- {name:'Twin Fin',unlock:1,turn:1.28,pieces:[
+ {name:'Twin Fin',unlock:2,turn:1.28,pieces:[
    bx(-2.6,0,5.2,1.8,0,2,DGREY,'dark'),
    ...mirX([
      px([[1,0.2],[2.1,0.2],[2.6,4],[1.5,4]],2,8,RED,'hull'),
@@ -899,7 +899,7 @@ const TAILS=[
      bx(1.2,3.4,1.2,1,2,1,YEL,'accent'),
    ]),
  ]},
- {name:'Sail',unlock:3,turn:1.06,pieces:[
+ {name:'Sail',unlock:5,turn:1.06,pieces:[
    bx(-3.4,0,6.8,1.6,0,2,BLACK,'dark'),
    px([[-2.9,1.3],[2.9,1.3],[2.2,2.2],[-2.2,2.2]],2,11,ORG,'accent'),
    px([[-2.5,1.4],[2.5,1.4],[1.95,2.1],[-1.95,2.1]],13,2,WHITE,'trim'),
@@ -907,7 +907,7 @@ const TAILS=[
    ...mirX([cyl(2.4,0.7,0.5,2,3,TORG,'glass',{n:6}),
             px([[1.4,0.3],[2.6,0.5],[2.6,1.3],[1.4,1.3]],2,3,ORG,'accent')]),
  ]},
- {name:'Boom',unlock:5,turn:1.34,pieces:[
+ {name:'Boom',unlock:9,turn:1.34,pieces:[
    bx(-1.4,0,2.8,1.8,0,3,DGREY,'dark'),
    tube(0,3,0.85,0.6,6.4,SILVER,'light',{n:10}),
    tube(0,3,1.05,5.4,0.9,AZ,'accent',{n:10}),
@@ -917,14 +917,14 @@ const TAILS=[
      cyl(2.5,3.2,0.45,4,1.4,TBLU,'glass',{n:6}),
    ]),
  ]},
- {name:'Spines',unlock:7,turn:1.12,pieces:(function(){
+ {name:'Spines',unlock:12,turn:1.12,pieces:(function(){
    const o=[bx(-1.5,0,3,5.4,0,2,DRED,'hull')];
    for(let i=0;i<5;i++)
      o.push(px([[-0.5,0.4+i*1],[0.5,0.4+i*1],[0.35,1.2+i*1],[-0.35,1.2+i*1]],
        2,7-i*0.8,i%2?GOLD:DRED,i%2?'accent':'hull'));
    return o;})()},
  // a pennant on a pole, gold-striped
- {name:'Banner',unlock:2,turn:1.1,pieces:[
+ {name:'Banner',unlock:3,turn:1.1,pieces:[
    bx(-1.4,0,2.8,2.2,0,3,DWOOD,'dark'),
    cyl(0,1,0.28,3,12,WOOD,'dark',{n:6}),
    cyl(0,1,0.55,14.6,1,GOLD,'accent',{n:8}),
@@ -1021,7 +1021,7 @@ function plateSprite(yaw,ss){const q=Math.round(yaw*24)/24;
    ======================================================================= */
 const SCENE={BUILD:0,LOADOUT:1,FLY:2};
 let scene=SCENE.BUILD;
-let level=1;const MAX_LEVEL=10;
+let level=1;const MAX_LEVEL=20;
 let totalCrystals=0,unlockPoints=0,chosenPower='shield';
 let hiScore=0,hiCombo=0,hiLevel=0;
 let stars=[],nebs=[];
@@ -1116,7 +1116,7 @@ function buildUI(){
          'border-radius:6px;margin-left:8px;vertical-align:middle;letter-spacing:1px">NEW</span>':'')+
        '</div>'+
      '<div style="color:'+(TC.accent||TC.glow)+';font-size:11px;margin-top:3px">'+
-       (cur&&slot.key==='engine'?'⚡ Power '+cur.thrust.toFixed(1)+'  ':'')+
+       (cur&&slot.key==='engine'?'⚡ Ship speed '+cur.thrust.toFixed(1)+'x  ':'')+
        (cur&&slot.key==='tail'?'🎯 Turning '+cur.turn.toFixed(2)+'x  ':'')+
        (cur&&slot.key==='defense'?'🛰 Fires every '+(cur.rate/60).toFixed(1)+'s  ':'')+
        (cur?lockHint(slot):'press ▶ to fit one')+'</div>'+
@@ -1176,7 +1176,7 @@ addEventListener('pointerup',()=>{if(dragging){dragging=false;yawSpin=dragged?0.
 
 const POWERS=[
  {id:'shield',name:'EXTRA SHIELD',icon:'🛡',desc:'Start with 5 shields instead of 3',color:'#0055BF'},
- {id:'speed',name:'HYPER SPEED',icon:'⚡',desc:'Fly faster & double points per crystal',color:'#57A93B'},
+ {id:'speed',name:'HYPER SPEED',icon:'⚡',desc:'Your ship darts about faster & double points',color:'#57A93B'},
  {id:'magnet',name:'GEM MAGNET',icon:'🧲',desc:'Crystals get pulled toward your ship',color:'#C91A09'}];
 function goLoadout(){audio();scene=SCENE.LOADOUT;loadoutUI();clackSound();}
 function loadoutUI(){
@@ -1226,12 +1226,17 @@ const missionGoal=lv=>Math.min(15,Math.round(7+lv*0.9));
 const isBossLevel=lv=>lv%3===0;
 function startMission(){
  audio();scene=SCENE.FLY;
- const goal=missionGoal(level);const sb=chosenPower==='speed'?1.35:1;
- const push=0.82+(ship.engine>=0?ENGINES[ship.engine].thrust:1)*0.16;   // ⚡ Power is a real stat now
+ const goal=missionGoal(level);
+ // Engine power and HYPER SPEED move the SHIP faster. The world scrolls at a
+ // rate set by the level alone -- speeding that up just made the game harder.
+ const push=0.84+(ship.engine>=0?ENGINES[ship.engine].thrust:1)*0.15;
+ const turn=ship.tail>=0?TAILS[ship.tail].turn:1;
+ const boost=chosenPower==='speed'?1.45:1;
+ const scroll=2.9+level*0.18;
  fly={shipX:W/2,shipY:H*0.72,tilt:0,crystals:0,picked:0,goal,
-  shields:[],turn:ship.tail>=0?TAILS[ship.tail].turn:1,
+  shields:[],glide:6.4*turn*push*boost,
   obstacles:[],gems:[],particles:[],trail:[],boss:null,bolts:[],pulses:[],fireT:0,
-  baseSpeed:(2.9+level*0.2)*sb*push,speed:(2.9+level*0.2)*sb*push,
+  baseSpeed:scroll,speed:scroll,
   dist:0,spawnT:0,over:false,win:false,overT:0,
   shield:chosenPower==='shield'?5:3,maxShield:chosenPower==='shield'?5:3,
   invuln:0,combo:0,comboT:0,maxCombo:0,shake:0,
@@ -1270,7 +1275,7 @@ function updateFly(){
  if(keys['ArrowLeft']||keys['KeyA'])steer-=1;
  if(keys['ArrowRight']||keys['KeyD'])steer+=1;
  steer+=touchSteer;steer=Math.max(-1,Math.min(1,steer));
- fly.shipX+=steer*6.8*fly.turn;fly.shipX=Math.max(40,Math.min(W-40,fly.shipX));
+ fly.shipX+=steer*fly.glide;fly.shipX=Math.max(40,Math.min(W-40,fly.shipX));
  fly.tilt+=(steer*0.35-fly.tilt)*0.15;
  fly.speed=fly.baseSpeed+Math.min(2.5,fly.dist/2600);
  fly.dist+=fly.speed;
@@ -1288,16 +1293,22 @@ function updateFly(){
  }
 
  fly.spawnT++;
- const every=Math.max(17,36-level*1.6);
+ const every=Math.max(9,34-level*1.35);
  if(fly.spawnT%Math.floor(every)===0){
-   const r=Math.random();
+   const r=Math.random(),gemShare=1-Math.min(0.09,level*0.0045);  // rockier as it climbs
    if(r<0.035){fly.shields.push({x:70+Math.random()*(W-140),y:-30,spin:0});}
    else if(r<0.075){fly.gems.push(mkGem(60+Math.random()*(W-120),-30,true));}
-   else if(r<0.235){fly.gems.push(mkGem(60+Math.random()*(W-120)));}
-   else if(r<0.275){const bx=90+Math.random()*(W-180);for(let k=-1;k<=1;k++)fly.gems.push(mkGem(bx+k*46,-30-Math.abs(k)*24));}
+   else if(r<0.235*gemShare){fly.gems.push(mkGem(60+Math.random()*(W-120)));}
+   else if(r<0.275*gemShare){const bx=90+Math.random()*(W-180);for(let k=-1;k<=1;k++)fly.gems.push(mkGem(bx+k*46,-30-Math.abs(k)*24));}
    else{const w=38+Math.random()*46;fly.obstacles.push({x:60+Math.random()*(W-120),y:-40,w,h:w*0.7,
-     hp:w<52?1:(w<70?2:3),hitT:0,
+     hp:w<52?1:(w<70?2:3),hitT:0,vx:level>=6?(Math.random()-0.5)*(1+level*0.07):0,
      spin:Math.random()*7,spinV:(Math.random()-.5)*0.04,rock:(Math.random()*ROCKS.length)|0,sc:w/74});}
+ }
+ if(level>=12&&fly.spawnT%Math.floor(every*7)===0){
+   for(let k=0;k<6;k++){const w=32+Math.random()*14;
+     fly.obstacles.push({x:60+Math.random()*(W-120),y:-40-k*34,w,h:w*0.7,hp:1,hitT:0,
+       vx:(Math.random()-0.5)*2.2,spin:Math.random()*7,spinV:(Math.random()-.5)*0.09,
+       rock:(Math.random()*ROCKS.length)|0,sc:w/74});}
  }
  if(level>=2&&fly.spawnT%Math.floor(every*5)===0){
    const dir=Math.random()<0.5?1:-1,sx=dir>0?70:W-70;
@@ -1308,8 +1319,9 @@ function updateFly(){
  }
  if(level>=3&&fly.spawnT%Math.floor(every*4)===0){
    const gap=120+Math.random()*60,gx=80+Math.random()*(W-160-gap);
-   fly.obstacles.push({x:gx-40,y:-50,w:70,h:50,hp:2,hitT:0,spin:0,spinV:0.01,rock:0,sc:70/74});
-   fly.obstacles.push({x:gx+gap+40,y:-50,w:70,h:50,hp:2,hitT:0,spin:0,spinV:-0.01,rock:3,sc:70/74});
+   const drift=level>=10?(Math.random()<0.5?-1:1)*1.1:0;   // the gap slides, later on
+   fly.obstacles.push({x:gx-40,y:-50,w:70,h:50,hp:2,hitT:0,vx:drift,spin:0,spinV:0.01,rock:0,sc:70/74});
+   fly.obstacles.push({x:gx+gap+40,y:-50,w:70,h:50,hp:2,hitT:0,vx:drift,spin:0,spinV:-0.01,rock:3,sc:70/74});
    fly.gems.push(mkGem(gx+gap/2,-50));
  }
 
@@ -1349,6 +1361,7 @@ function updateFly(){
 
  for(const o of fly.obstacles){
    o.y+=fly.speed;o.spin+=o.spinV;if(o.hitT>0)o.hitT--;
+   if(o.vx){o.x+=o.vx;if(o.x<44||o.x>W-44)o.vx*=-1;}
    if(fly.invuln<=0){const dx=o.x-fly.shipX,dy=o.y-fly.shipY;const rr2=(o.w*0.32+16);
      if(dx*dx+dy*dy<rr2*rr2)hitShip();}
  }
@@ -1375,6 +1388,11 @@ function updateFly(){
      beep(150,0.16,'square',0.14,-70);fly.shake=Math.max(fly.shake,5);
      if(Math.random()<0.22)fly.gems.push(mkGem(o.x,o.y));
      else if(Math.random()<0.14)fly.shields.push({x:o.x,y:o.y,spin:0});
+     if(level>=14&&o.w>62)                                  // big ones split in two
+       for(const sx of[-1,1]){const w2=o.w*0.5;
+         fly.obstacles.push({x:o.x+sx*o.w*0.3,y:o.y,w:w2,h:w2*0.7,hp:1,hitT:0,
+           vx:sx*1.3,spin:Math.random()*7,spinV:(Math.random()-.5)*0.07,
+           rock:(Math.random()*ROCKS.length)|0,sc:w2/74});}
    }else o.hitT=6;
  };
  for(const b of fly.bolts){
@@ -1433,7 +1451,7 @@ function loseMission(){if(fly.over)return;fly.over=true;fly.win=false;fly.overT=
   spawnBurst(fly.shipX,fly.shipY,'#C91A09',50);}
 function afterMission(){
  if(fly.win){
-   if(level>=MAX_LEVEL){scene=SCENE.BUILD;level=1;unlockPoints=Math.max(unlockPoints,10);activeSlot=0;buildUI();return;}
+   if(level>=MAX_LEVEL){scene=SCENE.BUILD;level=1;unlockPoints=Math.max(unlockPoints,MAX_LEVEL);activeSlot=0;buildUI();return;}
    level++;unlockPoints++;
  }
  scene=SCENE.BUILD;activeSlot=0;buildUI();
@@ -1505,7 +1523,7 @@ function drawFly(){
        ctx.fillStyle='#fff';ctx.font=Math.floor(W*0.036)+'px Trebuchet MS';
        ctx.fillText(fly.crystals+' crystals'+(fly.maxCombo>=3?'  ·  combo x'+fly.maxCombo:''),W/2,H*0.41);
        if(done){ctx.fillStyle='#F2CD37';ctx.font=Math.floor(W*0.03)+'px Trebuchet MS';
-         ctx.fillText('All 10 levels complete! Every part unlocked.',W/2,H*0.48);}
+         ctx.fillText('All '+MAX_LEVEL+' levels complete! Every part unlocked.',W/2,H*0.48);}
        else if(nextUnlockPreview()){ctx.fillStyle='#F2CD37';
          ctx.font='bold '+Math.floor(W*0.036)+'px Trebuchet MS';
          ctx.fillText('🔓 UNLOCKED: '+nextUnlockPreview(),W/2,H*0.49);}
@@ -1587,7 +1605,10 @@ function drawShieldPickup(sp){
 function drawRock(o){
  let s=ROCKSPR[o.rock];
  if(!s)s=ROCKSPR[o.rock]=makeSprite(ROCKS[o.rock],null,0.45);
- ctx.save();ctx.translate(o.x,o.y);ctx.rotate(o.spin);ctx.scale(o.sc,o.sc);
+ // rocks are small, tumbling and numerous -- smoothing the rotation of 40 of
+ // them costs more than it shows
+ ctx.save();ctx.imageSmoothingEnabled=false;
+ ctx.translate(o.x,o.y);ctx.rotate(o.spin);ctx.scale(o.sc,o.sc);
  ctx.drawImage(s.cv,s.ox,s.oy,s.w,s.h);
  if(o.hitT>0){ctx.globalCompositeOperation='lighter';ctx.globalAlpha=o.hitT/9;
    ctx.drawImage(s.cv,s.ox,s.oy,s.w,s.h);}

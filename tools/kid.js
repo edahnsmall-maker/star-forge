@@ -39,7 +39,7 @@ const run=async(url,label)=>{
     return{win:fly.over&&fly.win,secs:f/60,got:fly.crystals,goal:fly.goal};
   };
   const out=[];
-  for(const lv of [1,3,5,8]){
+  for(const lv of [1,4,8,12,16,20]){
     for(const def of (hasDef?[0,1,4]:[0])){
       let wins=0,secs=0,pct=0;const N=12;
       for(let i=0;i<N;i++){const r=trial(lv,def);

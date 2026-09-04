@@ -22,9 +22,11 @@ optional twists: per-corner top heights (which gives slopes), a tapered top
 gun barrels). Rectangles give bricks; swept quads give wedge plates; 12-gons
 give round plates and cylinders.
 
-**Parts change how it flies.** Engine power sets speed, the tail sets turn
-rate, and defence decides what you can shoot. Mission length and defence
-balance were both set from measured play, not by feel.
+**Parts change how it flies.** Engine power and the tail both set how fast
+the ship itself moves; the world scrolls at a rate set by the level alone.
+Defence decides what you can shoot. Twenty levels, with something new to
+unlock at almost every one up to sixteen and the last four pure difficulty.
+Mission length and balance were set from measured play, not by feel.
 
 **Parts mount, they don't just sit near each other.** Every hull narrows to
 the same width at z=7 and z=18, so any cockpit and any engine mate with any
