@@ -169,6 +169,9 @@ function newell(P){let x=0,y=0,z=0;
 
 /* Clip a footprint polygon to one grid cell (Sutherland-Hodgman). Used to cut
    big faces into pieces small enough that depth ordering is local. */
+// how finely the spin is quantised. 24 steps is 15 degrees a jump, which
+// reads as stop motion; each step is a fresh bake, so this is the trade.
+let YAWQ=48;
 let CELL=1.2;   // studs. Smaller sorts better and costs more faces.
 function clipCell(poly,x0,x1,z0,z1){
  const ins=(q,e)=>e===0?q[0]>=x0:e===1?q[0]<=x1:e===2?q[1]>=z0:q[1]<=z1;
@@ -546,7 +549,8 @@ function drawPieces(c,pieces,TH,yaw,depthPass){
 
 /* ---------- sprite cache: a model is drawn once per viewing angle ---------- */
 const SPR=new Map();
-function makeSprite(pieces,TH,yaw,SS,dof){
+let SPR_CAP=70;
+function makeSprite(pieces,TH,yaw,SS,dof,rough){
  SS=SS||2;
  if(!pieces.length){const e=document.createElement('canvas');e.width=e.height=1;
    return{cv:e,ox:0,oy:0,w:1,h:1,empty:true};}
@@ -561,7 +565,8 @@ function makeSprite(pieces,TH,yaw,SS,dof){
  const g=cv.getContext('2d');g.setTransform(SS,0,0,SS,0,0);
  g.translate(-ax+pad,-ay+pad);
  drawPieces(g,pieces,TH,yaw);
- applyAO(cv,pieces,TH,yaw,SS,ax,ay,pad,dof);
+ // ambient occlusion and bounce are invisible on a model that is mid-turn
+ if(!rough)applyAO(cv,pieces,TH,yaw,SS,ax,ay,pad,dof);
  return{cv,ox:ax-pad,oy:ay-pad,w,h};
 }
 // Contact shadows. Render the same geometry once more as flat depth, then
@@ -635,10 +640,10 @@ function applyBounce(cv,SS){
  c4.drawImage(t,0,0);
  c4.restore();
 }
-function sprite(key,pieces,TH,yaw,SS,dof){
+function sprite(key,pieces,TH,yaw,SS,dof,rough){
  let s=SPR.get(key);if(s)return s;
- s=makeSprite(pieces,TH,yaw,SS,dof);SPR.set(key,s);
- if(SPR.size>36){SPR.clear();SPR.set(key,s);}
+ s=makeSprite(pieces,TH,yaw,SS,dof,rough);SPR.set(key,s);
+ if(SPR.size>SPR_CAP){SPR.clear();SPR.set(key,s);}
  return s;
 }
 // mirror a set of pieces across the centreline
@@ -1646,15 +1651,17 @@ function shipPieces(){
  if(ship.defense>=0)out=out.concat(placeZ(DEFENSES[ship.defense].pieces,dy,dz));
  return out;
 }
-function shipSprite(yaw,ss,dof){
- const q=Math.round(yaw*24)/24;
+function shipSprite(yaw,ss,dof,rough){
+ const q=Math.round(yaw*YAWQ)/YAWQ;
  return sprite('s'+[ship.cockpit,ship.wings,ship.body,ship.engine,ship.tail,
    ship.defense,ship.pilot,ship.theme].join(',')+'_'+q.toFixed(3)+'_'+ss+(dof?'_d':''),
-   shipPieces(),THEMES[ship.theme],q,ss,dof);
+   shipPieces(),THEMES[ship.theme],q,ss,dof,rough);
 }
 // exactly the device pixels one model unit will occupy, so drawImage maps
 // 1:1 and nothing is resampled on the way to the screen
-const bakeSS=s=>Math.round(Math.max(1.5,Math.min(8,s*(DPR||1)))*100)/100;
+// floor defaults to 1.5 -- the rough pass used while the model turns passes a
+// lower one, or on a phone it lands on the same floor and saves nothing
+const bakeSS=(s,floor)=>Math.round(Math.max(floor||1.5,Math.min(8,s*(DPR||1)))*100)/100;
 /* Exhaust leaves along the ship's own tail axis, not straight down the screen.
    The old flame ignored yaw entirely, so as the model turned the nacelles
    pointed one way and the fire went another -- which is why it never looked
@@ -1686,8 +1693,13 @@ function thruster(c,x,y,dx,dy,r,t,C,seed){
   c.quadraticCurveTo(x+dx*cl*0.5,y+dy*cl*0.5,x-px*cw,y-py*cw);
   c.closePath();c.fill();
   c.restore();}
-function drawShip(c,x,y,s,t=0.6,yaw=0,dof){
- const sp=shipSprite(yaw,bakeSS(s),dof),pal=THEMES[ship.theme];
+function drawShip(c,x,y,s,t=0.6,yaw=0,dof,rough){
+ /* While it is turning, every new angle is a fresh bake, so a finer spin costs
+    frames directly. Baking at roughly half the supersample during motion makes
+    each one about four times cheaper, which buys the finer steps; the moment it
+    settles it re-bakes that one angle at full quality, and the still frame is
+    what actually gets looked at. */
+ const sp=shipSprite(yaw,bakeSS(s*(rough?0.5:1),rough?0.8:1.5),dof,rough),pal=THEMES[ship.theme];
  if(sp.empty)return;
  c.save();c.translate(x,y);c.scale(s,s);
  if(t>0&&ship.engine>=0){const cs=Math.cos(yaw),sn=Math.sin(yaw);
@@ -1770,14 +1782,14 @@ function plateOf(f){
  if(!pl){pl=[bx(-f.hw,f.z0,f.hw*2,f.z1-f.z0,-1,1,'#4E9440')];_bpc.set(k,pl);}
  return pl;}
 function plateSprite(yaw,ss){
- const f=shipFootprint(),q=Math.round(yaw*24)/24;
+ const f=shipFootprint(),q=Math.round(yaw*YAWQ)/YAWQ;
  return sprite('bp_'+f.hw+'_'+f.z0+'_'+f.z1+'_'+q.toFixed(3)+'_'+ss,plateOf(f),null,q,ss,true);}
 
 /* =======================================================================
    SCENES
    ======================================================================= */
 const SHOW_PAD=false;   // the green baseplate. Flip to bring it back.
-const BUILD_ID='b27';
+const BUILD_ID='b29';
 const SCENE={BUILD:0,LOADOUT:1,FLY:2};
 let scene=SCENE.BUILD;
 let uiTop=176;          // bottom of the wrapped tab block, measured after layout
@@ -1794,7 +1806,7 @@ initStars();
 // baked once per colour -- a full-screen radial gradient every frame was
 // the single most expensive thing in the old renderer after the glows
 const NEB={cv:null,w:0,h:0,S:3};
-function drawNebula(speed){
+function drawNebulaInto(dst,speed){
  const bw=Math.ceil(W/NEB.S),bh=Math.ceil(H/NEB.S);
  if(!NEB.cv||NEB.w!==bw||NEB.h!==bh){
    NEB.cv=document.createElement('canvas');NEB.cv.width=bw;NEB.cv.height=bh;
@@ -1813,9 +1825,36 @@ function drawNebula(speed){
    g.save();g.translate(n.x/S,n.y/S);g.globalAlpha=n.a;g.fillStyle=gr;
    g.beginPath();g.arc(0,0,r,0,7);g.fill();g.restore();}
  g.restore();
- ctx.drawImage(NEB.cv,0,0,W,H);
+ dst.drawImage(NEB.cv,0,0,W,H);
 }
 let vigGrad=null,vigW=0,vigH=0;
+/* The sky was three full-screen fills a frame -- gradient, nebula, vignette --
+   which at 2x device pixels is millions of pixel writes before anything else is
+   drawn, and it was most of what made the build screen sit at 40fps. It is all
+   slow-moving and blurry, so it is composited once into a half-resolution
+   canvas, refreshed a few times a second, and blitted. */
+const SKYBG={cv:null,g:null,w:0,h:0,t:99,key:''};
+function drawSky(key,stops,nebSpeed){
+ const bw=Math.max(2,Math.ceil(W*0.5)),bh=Math.max(2,Math.ceil(H*0.5));
+ if(!SKYBG.cv||SKYBG.cv.width!==bw||SKYBG.cv.height!==bh){
+   SKYBG.cv=document.createElement('canvas');SKYBG.cv.width=bw;SKYBG.cv.height=bh;
+   SKYBG.g=SKYBG.cv.getContext('2d');SKYBG.t=99;}
+ if(SKYBG.t++>=5||SKYBG.key!==key){
+   SKYBG.t=0;SKYBG.key=key;
+   const g=SKYBG.g;
+   g.setTransform(bw/W,0,0,bh/H,0,0);
+   const lg=g.createLinearGradient(0,0,0,H);
+   for(const st of stops)lg.addColorStop(st[0],st[1]);
+   g.fillStyle=lg;g.fillRect(0,0,W,H);
+   drawNebulaInto(g,nebSpeed);
+   if(vigW!==W||vigH!==H){vigW=W;vigH=H;
+     vigGrad=g.createRadialGradient(W/2,H/2,Math.min(W,H)*0.35,W/2,H/2,Math.max(W,H)*0.7);
+     vigGrad.addColorStop(0,'rgba(0,0,0,0)');vigGrad.addColorStop(1,'rgba(0,0,0,0.5)');}
+   g.fillStyle=vigGrad;g.fillRect(0,0,W,H);
+   g.setTransform(1,0,0,1,0,0);
+ }
+ ctx.drawImage(SKYBG.cv,0,0,W,H);
+}
 function drawVignette(){
  if(vigW!==W||vigH!==H){vigW=W;vigH=H;
    vigGrad=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*0.35,W/2,H/2,Math.max(W,H)*0.7);
@@ -1884,7 +1923,7 @@ const NEEDED=['body','wings','cockpit','engine','defense','pilot'];
 // a slot he has not unlocked anything for yet stays out of the way
 const slotOpen=sl=>sl.list.some(it=>isUnlocked(it));
 const missingSlot=()=>SLOTS.find(s=>NEEDED.indexOf(s.key)>=0&&ship[s.key]<0&&slotOpen(s));
-let activeSlot=0,bob=0,buildYaw=0.35,yawSpin=0.004,dragging=false,dragX=0,dragged=false;
+let activeSlot=0,bob=0,buildYaw=0.35,yawSpin=0,dragging=false,dragX=0,dragged=false;
 const isUnlocked=it=>unlockPoints>=(it.unlock||0);
 const seenParts=new Set();
 const isNew=(key,i,it)=>isUnlocked(it)&&(it.unlock||0)>0&&!seenParts.has(key+i);
@@ -1907,7 +1946,7 @@ function buildUI(){
      'text-shadow:0 3px 0 #1B2A34,0 5px 8px rgba(0,0,0,.6)">⚡ STAR FORGE</div>'+
    '<div style="text-align:right;font-size:13px;color:#fff;text-shadow:0 2px 0 #1B2A34">'+
      '<div style="color:#AEEFEC">LEVEL '+level+' / '+MAX_LEVEL+'</div>'+
-     '<div style="color:#9DB4C6;font-size:11px;letter-spacing:1px">→ '+planetFor(level).n+'</div>'+
+
      '<div style="color:#56E646">💎 '+totalCrystals+'</div><div>'+hs+'</div></div>'+
  '</div>'+
  '<div id="tabs" style="position:absolute;top:74px;left:0;right:0;display:flex;justify-content:center;gap:6px;flex-wrap:wrap;padding:0 10px">'+
@@ -1967,7 +2006,12 @@ function buildUI(){
    on the finished ship. It gets its own sprite cache so it cannot evict the
    ship's. */
 let cardYaw=0.6;
-const cardW=()=>Math.min(226,Math.max(132,W*0.42));
+function cardBox(bandTop,band){
+ if(W>=620){const w=Math.min(300,Math.max(170,W*0.26)),h=w*0.88;
+   return{x:W-w-14,y:bandTop+8,w,h,side:true};}
+ const w=Math.min(340,W*0.78),h=Math.min(158,Math.max(96,band*0.34));
+ return{x:(W-w)/2,y:bandTop+band-h-2,w,h,side:false};
+}
 const CARD=new Map(), _cardPS=new Map(), _cardBB=new Map();
 function partPieces(){
  const sl=SLOTS[activeSlot],i=ship[sl.key];
@@ -2013,19 +2057,18 @@ function roundPath(c,x,y,w,h,r){
  c.lineTo(x+r,y+h);c.quadraticCurveTo(x,y+h,x,y+h-r);
  c.lineTo(x,y+r);c.quadraticCurveTo(x,y,x+r,y);c.closePath();
 }
-function drawPartCard(bandTop){
+function drawPartCard(box){
  const info=partPieces();if(!info)return;
- const sl=SLOTS[activeSlot],opt=sl.list[ship[sl.key]];
- const cw=cardW(),ch=cw*0.90;
- const x=W-cw-10,y=bandTop+6;
+ const sl=SLOTS[activeSlot];
+ const cw=box.w,ch=box.h,x=box.x,y=box.y;
  ctx.save();
  roundPath(ctx,x,y,cw,ch,13);
  ctx.fillStyle='rgba(10,17,42,0.60)';ctx.fill();
  ctx.strokeStyle='rgba(150,180,220,0.20)';ctx.lineWidth=1;ctx.stroke();
  ctx.clip();
- const q=Math.round(cardYaw*24)/24;
+ const q=Math.round(cardYaw*YAWQ)/YAWQ;
  const bw=info.bb.pw,bh=info.bb.ph;
- const sc=Math.round(Math.min((cw-22)/bw,(ch-36)/bh)*20)/20;
+ const sc=Math.round(Math.min((cw-16)/bw,(ch-26)/bh)*1.12*20)/20;
  if(sc>0.05){
    const ss=bakeSS(sc),key=info.k+'_'+q.toFixed(3)+'_'+ss;
    let sp=CARD.get(key);
@@ -2035,7 +2078,7 @@ function drawPartCard(bandTop){
      // the sprite carries its own bounds at THIS angle; the union over all 24
      // angles sets a stable scale but would centre it off to one side
      const mx=x+cw/2-(sp.ox+sp.w/2)*sc,
-           my=y+(ch-18)/2-(sp.oy+sp.h/2)*sc;
+           my=y+(ch-14)/2-(sp.oy+sp.h/2)*sc;
      ctx.save();ctx.translate(mx,my);ctx.scale(sc,sc);
      ctx.drawImage(sp.cv,sp.ox,sp.oy,sp.w,sp.h);ctx.restore();
    }
@@ -2047,16 +2090,15 @@ function drawPartCard(bandTop){
  ctx.restore();
 }
 function drawBuild(){
- const g=ctx.createLinearGradient(0,0,0,H);
- g.addColorStop(0,'#101d47');g.addColorStop(0.55,'#0a1230');g.addColorStop(1,'#060a1c');
- ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
- drawNebula(0.12);
+ drawSky('build',[[0,'#101d47'],[0.55,'#0a1230'],[1,'#060a1c']],0.12);
  for(const s of stars){s.y+=0.15+s.z*0.3;s.tw+=0.05;if(s.y>H){s.y=0;s.x=Math.random()*W;}
    const fl=0.6+0.4*Math.sin(s.tw);
    ctx.fillStyle='rgba(255,255,255,'+(0.2+s.z*0.5)*fl+')';
    ctx.beginPath();ctx.arc(s.x,s.y,s.s*0.7,0,7);ctx.fill();}
  bob+=0.04;
- if(!dragging)buildYaw+=yawSpin;
+ if(!dragging&&yawSpin){buildYaw+=yawSpin;yawSpin*=0.955;
+   if(Math.abs(yawSpin)<0.0006)yawSpin=0;}     // coast, then settle
+ const spinning=dragging||yawSpin!==0;
  // fit pad + model to the free band, instead of a fixed fraction of the screen
  const fp=shipFootprint();
  const bandTop=Math.max(150,uiTop),bandBot=H-158,band=Math.max(120,bandBot-bandTop);
@@ -2065,17 +2107,17 @@ function drawBuild(){
  // the screen and swallows the caption
  const cap=empty?1.35:2.9;
  // quantised so a part swap cannot spray the sprite cache with near-identical scales
- // the preview card takes a column on the right; the model gets the rest, so
- // the two never sit on top of each other
- const hasCard=!!partPieces();
- const modelW=hasCard?Math.max(W*0.50,W-cardW()-24):W*0.94;
- const sc=Math.max(0.7,Math.min(cap,
-   Math.round(Math.min(modelW/fp.pw,band*0.92/fp.ph)*20)/20));
- // the model anchor is offset so the composition's own centre lands in the
- // middle of its column; captions stay on the screen's centre line
- const cxc=hasCard?(W-cardW()-24)*0.5+4:W/2;
+ // the card takes a column beside the model on a wide screen and a strip
+ // below it on a phone; the model gets whatever is left of the band
+ const box=partPieces()?cardBox(bandTop,band):null;
+ const modelW=(box&&box.side)?Math.max(W*0.52,box.x-24):W*0.94;
+ const modelH=(box&&!box.side)?Math.max(120,box.y-bandTop-10):band;
+ const sc=Math.max(0.45,Math.min(cap,
+   Math.round(Math.min(modelW/fp.pw,modelH*0.94/fp.ph)*20)/20));
+ const cxc=(box&&box.side)?box.x*0.5:W/2;
+ const cyc=bandTop+((box&&!box.side)?modelH*0.5:(empty?band*0.62:band*0.5));
  const cx=cxc-(fp.ax+fp.bx)*0.5*sc,
-       cy=(empty?bandTop+band*0.62:bandTop+band*0.5)-(fp.ay+fp.by)*0.5*sc;
+       cy=cyc-(fp.ay+fp.by)*0.5*sc;
  if(empty){                                      // an empty pad, waiting
    const ty=bandTop+40;
    ctx.save();ctx.textAlign='center';
@@ -2104,8 +2146,8 @@ function drawBuild(){
    ctx.fillStyle=pg;ctx.beginPath();ctx.arc(cx,cy+34,pr,0,7);ctx.fill();ctx.restore();
  }
  if(!empty){                                     // the model's own shadow
-   const q=Math.round(buildYaw*24)/24,ss=bakeSS(sc);
-   const sp=shipSprite(buildYaw,ss,true);
+   const q=Math.round(buildYaw*YAWQ)/YAWQ,ss=bakeSS(sc*(spinning?0.5:1),spinning?0.8:1.5);
+   const sp=shipSprite(buildYaw,ss,true,spinning);
    if(!sp.empty){
      const shc=shadowOf(sp,'sh'+[ship.cockpit,ship.wings,ship.body,ship.engine,
        ship.tail,ship.defense,ship.pilot].join(',')+q.toFixed(3)+ss);
@@ -2116,16 +2158,15 @@ function drawBuild(){
      ctx.restore();
    }
  }
- drawShip(ctx,cx,cy-14+Math.sin(bob)*5,sc,0.45+0.25*Math.sin(bob*2),buildYaw,true);
- cardYaw+=0.010;
- drawPartCard(bandTop);
- drawVignette();
+ drawShip(ctx,cx,cy,sc,0.45+0.25*Math.sin(bob*2),buildYaw,true,spinning);
+ cardYaw+=0.0032;
+ if(box)drawPartCard(box);
 }
 // drag anywhere on the pad to spin the model
 addEventListener('pointerdown',e=>{if(scene!==SCENE.BUILD)return;dragging=true;dragged=false;dragX=e.clientX;});
 addEventListener('pointermove',e=>{if(!dragging)return;
  const dx=e.clientX-dragX;dragX=e.clientX;if(Math.abs(dx)>0.5)dragged=true;buildYaw+=dx*0.012;});
-addEventListener('pointerup',()=>{if(dragging){dragging=false;yawSpin=dragged?0.0015:0.004;}});
+addEventListener('pointerup',()=>{if(dragging){dragging=false;yawSpin=dragged?0.010:0;}});
 
 const POWERS=[
  {id:'shield',name:'EXTRA SHIELD',icon:'🛡',desc:'Start with 5 shields instead of 3',color:'#0055BF'},
@@ -2208,7 +2249,7 @@ function buildFlyUI(){
    '<div><div style="font-size:11px;color:#9DB4C6;letter-spacing:1px">GEMS</div>'+
      '<div id="cz" style="font-size:26px;font-weight:bold;color:#56E646;text-shadow:0 3px 0 #1B2A34;transition:transform .1s">0 / '+fly.goal+'</div>'+
      '<div id="score" style="font-size:12px;color:#F2CD37;margin-top:1px">💎 0</div></div>'+
-   '<div style="text-align:center"><div style="font-size:10px;color:#9DB4C6;letter-spacing:2px">→ '+planetFor(level).n+' '+(isBossLevel(level)?'👹':'')+'</div>'+
+   '<div style="text-align:center"><div style="font-size:10px;color:#9DB4C6;letter-spacing:2px">LEVEL '+level+(isBossLevel(level)?'  👹':'')+'</div>'+
      '<div style="font-size:24px;font-weight:bold;color:#AEEFEC;text-shadow:0 3px 0 #1B2A34">'+level+'</div>'+
      '<div id="combo" style="font-size:14px;color:#F2CD37;height:16px;text-shadow:0 2px 0 #1B2A34"></div></div>'+
    '<div style="text-align:right"><div style="font-size:11px;color:#9DB4C6;letter-spacing:1px">SHIELD</div>'+
@@ -2426,11 +2467,7 @@ function nextUnlockPreview(){const nx=unlockPoints+1;
 function drawFly(){
  ctx.save();
  if(fly.shake>0.5)ctx.translate((Math.random()-0.5)*fly.shake,(Math.random()-0.5)*fly.shake);
- const bgf=ctx.createLinearGradient(0,0,0,H);
- bgf.addColorStop(0,'#0b1435');bgf.addColorStop(0.6,'#080f26');bgf.addColorStop(1,'#04060f');
- ctx.fillStyle=bgf;ctx.fillRect(-20,-20,W+40,H+40);
- drawPlanet();
- drawNebula(fly.speed*0.4);
+ drawSky('fly',[[0,'#0b1435'],[0.6,'#080f26'],[1,'#04060f']],fly.speed*0.4);
  for(const s of stars){s.y+=fly.speed*(0.3+s.z*0.9);if(s.y>H){s.y=0;s.x=Math.random()*W;}}
  for(let bk=0;bk<3;bk++){
    ctx.strokeStyle='rgba(170,205,255,'+(0.16+bk*0.13)+')';ctx.lineWidth=0.8+bk*0.55;
@@ -2482,8 +2519,8 @@ function drawFly(){
    if(fly.overT>20){ctx.textAlign='center';
      if(fly.win){const done=level>=MAX_LEVEL;
        ctx.fillStyle='#1B2A34';ctx.font='bold '+Math.floor(W*0.085)+'px Trebuchet MS';
-       ctx.fillText(done?'YOU WON! 🏆':'ARRIVED AT '+planetFor(level).n,W/2,H*0.32+4);
-       ctx.fillStyle='#57A93B';ctx.fillText(done?'YOU WON! 🏆':'ARRIVED AT '+planetFor(level).n,W/2,H*0.32);
+       ctx.fillText(done?'YOU WON! 🏆':'LEVEL CLEAR!',W/2,H*0.32+4);
+       ctx.fillStyle='#57A93B';ctx.fillText(done?'YOU WON! 🏆':'LEVEL CLEAR!',W/2,H*0.32);
        ctx.fillStyle='#fff';ctx.font=Math.floor(W*0.036)+'px Trebuchet MS';
        ctx.fillText(fly.crystals+' crystals'+(fly.maxCombo>=3?'  ·  combo x'+fly.maxCombo:''),W/2,H*0.41);
        if(done){ctx.fillStyle='#F2CD37';ctx.font=Math.floor(W*0.03)+'px Trebuchet MS';
