@@ -719,6 +719,7 @@ const GREY='#9BA19D',DGREY='#6C6E68',BLACK='#1B2A34',WHITE='#F4F4F4',SILVER='#A5
       PURP='#8320B7',LAV='#A06EB9',PINK='#E4ADC8',
       TAN='#DEC69C',STONE='#A3A2A4',WOOD='#7A5230',DWOOD='#583927',
       SAIL='#EFE3C8',BATW='#3D2A52',DPURP='#5B3A8C',BRIS='#C8A96A',
+      HOTP='#F0559C',BLUSH='#F7C6DC',MINT='#7FE5C4',SKY='#8ECAF0',CREAM='#FFF2D0',
       TYEL='#F5CD2F',TBLU='#AEEFEC',TGRN='#9BE854',TORG='#FF9A3D',TPUR='#C8A0E0';
 
 /* One dominant colour per option, with its accent used sparingly and loudly.
@@ -741,6 +742,8 @@ const PAL={
  bat    :{hull:BATW,  light:BATW,  trim:PURP,  accent:LIME,  dark:'#241733'},
  candy  :{hull:PINK,  light:PINK,  trim:WHITE, accent:PURP,  dark:'#5B3A8C'},
  canvas :{hull:WOOD,  light:WOOD,  trim:SAIL,  accent:DRED,  dark:DWOOD},
+ unicorn:{hull:BLUSH, light:BLUSH, trim:WHITE, accent:LAV,   dark:PURP},
+ sherbet:{hull:HOTP,  light:HOTP,  trim:CREAM, accent:MINT,  dark:PURP},
 };
 const METAL={};METAL[SILVER]=1;METAL[DGREY]=1;METAL[STONE]=1;METAL[BLACK]=1;
 function tintPart(o){
@@ -823,6 +826,38 @@ const COCKPITS=[
    ...strip(-0.5,0.2,3,10,GREY,DGREY,0.8),
  ]},
  // fat orange racer: dome, side intakes, exhaust pipes, spoiler
+ // pink, horned, and entirely serious about it
+ {name:'Unicorn',unlock:2,pal:PAL.unicorn,seat:[0,5.6,6],pieces:[
+   px([[-4.4,9.4],[4.4,9.4],[3,1.6],[-3,1.6]],0,1,BLUSH,'hull'),
+   px([[-3,1.6],[3,1.6],[1.5,-3.4],[-1.5,-3.4]],0,1,BLUSH,'hull'),
+   bx(-3.4,2.4,6.8,6.2,1,4,BLUSH,'hull'),
+   bx(-3,3,6,5,5,1,WHITE,'trim'),
+   // the snout, with nostrils
+   sl(-2.2,-3,4.4,4.4,1,3,'n',BLUSH,'hull'),
+   ...mirX([cyl(1.1,-2.2,0.34,3.6,0.5,PURP,'dark',{n:6})]),
+   // eyes
+   ...mirX([cyl(1.7,1.2,0.72,4.2,0.7,WHITE,'trim',{n:10}),
+            cyl(1.7,1.2,0.34,4.8,0.4,BLACK,'dark',{n:8})]),
+   // the horn: three cones, gold, tapering
+   cyl(0,0.6,1.15,4.2,2.2,GOLD,'accent',{n:10,ts:0.82}),
+   cyl(0,0.6,0.94,6.3,2.4,CREAM,'trim',{n:10,ts:0.76}),
+   cyl(0,0.6,0.72,8.6,2.6,GOLD,'accent',{n:10,ts:0.68}),
+   cyl(0,0.6,0.49,11.1,2.8,CREAM,'trim',{n:10,ts:0.08}),
+   // ears
+   ...mirX([cyl(2.5,0.2,0.55,4.4,1.5,BLUSH,'hull',{n:6,ts:0.2})]),
+   // the mane, running back over the canopy in three colours
+   ...mirX([
+     px([[1.0,2.6],[3.2,3.0],[3.2,8.6],[1.0,8.2]],5,2.6,LAV,'accent'),
+     px([[1.5,3.4],[3.6,3.8],[3.6,8.0],[1.5,7.6]],7.6,2.4,MINT,'trim'),
+     px([[2.0,4.2],[4.0,4.6],[4.0,7.4],[2.0,7.0]],10.0,2.2,HOTP,'accent'),
+     px([[2.5,5.0],[4.3,5.4],[4.3,6.8],[2.5,6.4]],12.2,1.8,SKY,'trim'),
+     ...lamp(3.6,9.2,1,TPUR),
+   ]),
+   cyl(0,5.6,2.9,5,3.2,TPUR,'glass',{n:16}),
+   cyl(0,5.6,3.1,4.4,0.8,WHITE,'trim',{n:16}),
+   bx(-2.2,9,4.4,0.8,5,3,LAV,'accent'),
+   ...mirX([bx(2.6,9.2,1.1,1.1,5,2,MINT,'trim')]),
+ ]},
  {name:'Bubble',unlock:0,seat:[0,5.4,6],pieces:[
    px([[-4.6,9.5],[4.6,9.5],[3.2,2],[-3.2,2]],0,1,WHITE,'hull'),
    px([[-3.2,2],[3.2,2],[1.6,-3],[-1.6,-3]],0,1,WHITE,'hull'),
@@ -1160,6 +1195,26 @@ const WINGS=[
    cyl(3.6,11,0.5,5.4,1.4,TORG,'glass',{n:6}),
    cyl(3.6,16.4,0.5,2,1.4,TORG,'glass',{n:6}),
  ]},
+ // feathers, in blush and mint, with a rainbow along the trailing edge
+ {name:'Pegasus',unlock:4,pal:PAL.unicorn,pieces:(function(){
+   const o=[];
+   o.push(px([[0,8],[2.2,7.4],[8.6,11],[8.2,13.4],[0,13]],0,1.2,BLUSH,'hull'));
+   o.push(px([[0,13],[8.2,13.4],[7,17.4],[0,17]],0,1.2,BLUSH,'hull'));
+   o.push(bx(0,8.4,1.7,8.4,1.2,3,WHITE,'trim'));
+   // five feathers fanning off the trailing edge
+   const F=[[2.2,14.2,3.4],[3.6,14.9,3.9],[5.0,15.5,3.6],[6.3,16.0,3.0],[7.4,16.4,2.4]];
+   const CO=[HOTP,LAV,MINT,SKY,CREAM];
+   F.forEach((f,i)=>{
+     o.push(px([[f[0],f[1]],[f[0]+1.15,f[1]+0.25],[f[0]+0.8,f[1]+f[2]],[f[0]-0.1,f[1]+f[2]*0.86]],
+               1.2,0.8,CO[i],i%2?'trim':'accent'));
+   });
+   // a second row of shorter feathers on top
+   for(let i=0;i<4;i++)
+     o.push(px([[2.6+i*1.35,12.2+i*0.5],[3.6+i*1.35,12.5+i*0.5],
+                [3.3+i*1.35,15.0+i*0.5],[2.4+i*1.35,14.7+i*0.5]],2,0.7,WHITE,'trim'));
+   o.push(...lamp(7.8,11.6,2.2,TPUR));
+   o.push(tube(8.2,2,0.26,10.4,3.4,SILVER,'light',{n:6}));
+   return o;})()},
  // three long bars and nothing between them -- a scaffold, not a wing.
  // Yellow with black hazard stripes, like something off a building site.
  {name:'Girder',unlock:2,pal:PAL.yellow,pieces:(function(){
@@ -1467,6 +1522,10 @@ const THEMES=[
   glow:'#C86FE0',flame:'#FFFFFF',flame2:'#C86FE0'},
  {name:'Ice',unlock:9,hull:WHITE,trim:AZ,light:'#C9D6DE',dark:BLACK,glass:TBLU,accent:AZ,
   glow:'#78D9F0',flame:'#FFFFFF',flame2:'#78D9F0'},
+ {name:'Unicorn',unlock:1,hull:BLUSH,trim:WHITE,light:'#F2D8E6',dark:PURP,glass:TPUR,accent:LAV,
+  glow:'#E7A6E0',flame:'#FFFFFF',flame2:'#E7A6E0'},
+ {name:'Sherbet',unlock:3,hull:HOTP,trim:CREAM,light:'#FFB9D6',dark:PURP,glass:TPUR,accent:MINT,
+  glow:MINT,flame:'#FFFFFF',flame2:'#7FE5C4'},
  {name:'Midnight',unlock:2,hull:'#1B2A34',trim:GOLD,light:'#3E4C57',dark:'#0E161C',glass:TYEL,accent:GOLD,
   glow:GOLD,flame:'#FFF3C0',flame2:GOLD},
  {name:'Candy',unlock:5,hull:'#E4ADC8',trim:WHITE,light:'#F7DCE8',dark:'#8E4C6B',glass:'#FFD9EC',accent:'#FF5FA2',
@@ -1718,7 +1777,7 @@ function plateSprite(yaw,ss){
    SCENES
    ======================================================================= */
 const SHOW_PAD=false;   // the green baseplate. Flip to bring it back.
-const BUILD_ID='b26';
+const BUILD_ID='b27';
 const SCENE={BUILD:0,LOADOUT:1,FLY:2};
 let scene=SCENE.BUILD;
 let uiTop=176;          // bottom of the wrapped tab block, measured after layout
