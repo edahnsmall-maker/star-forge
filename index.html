@@ -177,10 +177,37 @@ function pieceGeom(p){
  for(let i=0;i<n;i++)V.push(map(p.pts[i][0],p.pts[i][1],p.y));
  for(let i=0;i<n;i++){const q=p.pts[i],th=p.hs?p.hs[i]:p.h;
    V.push(map(cu+(q[0]-cu)*ts,cv+(q[1]-cv)*ts,p.y+th));}
- const F=[{i:Array.from({length:n},(_,k)=>n+k),cap:true}];
- for(let i=0;i<n;i++){const j=(i+1)%n;F.push({i:[i,j,n+j,n+i],side:true});}
  const C=[0,0,0];for(const v of V){C[0]+=v[0];C[1]+=v[1];C[2]+=v[2];}
- for(let k=0;k<3;k++)C[k]/=V.length;
+ for(let k=0;k<3;k++)C[k]/=V.length;    // centre of the solid, before any splitting
+ /* A big flat top cannot be sorted as one unit. Depth ordering says a brick
+    standing on the far end of a deck is further away than the deck's centre,
+    so the deck gets painted over it -- which is the large blank panel that
+    kept appearing across the hull as it turned. Splitting a large top into
+    cells makes each one's depth local, and then a brick is always nearer than
+    the cell it is standing on. */
+ let subdiv=false;
+ const F=[];
+ if(n===4&&!p.hs&&ts===1&&ax==='y'){
+   const xs=p.pts.map(q=>q[0]),zs=p.pts.map(q=>q[1]);
+   const x0=Math.min.apply(null,xs),x1=Math.max.apply(null,xs);
+   const z0=Math.min.apply(null,zs),z1=Math.max.apply(null,zs);
+   const w=x1-x0,d=z1-z0;
+   const axisAligned=p.pts.every(q=>
+     (Math.abs(q[0]-x0)<1e-6||Math.abs(q[0]-x1)<1e-6)&&
+     (Math.abs(q[1]-z0)<1e-6||Math.abs(q[1]-z1)<1e-6));
+   if(axisAligned&&w*d>9){
+     const CELL=2.2,nx=Math.ceil(w/CELL),nz=Math.ceil(d/CELL);
+     for(let i=0;i<nx;i++)for(let j=0;j<nz;j++){
+       const a=x0+w*i/nx,b2=x0+w*(i+1)/nx,c0=z0+d*j/nz,c1=z0+d*(j+1)/nz,k0=V.length;
+       V.push(map(a,c0,p.y+p.h),map(b2,c0,p.y+p.h),
+              map(b2,c1,p.y+p.h),map(a,c1,p.y+p.h));
+       F.push({i:[k0,k0+1,k0+2,k0+3],cap:true});
+     }
+     subdiv=true;
+   }
+ }
+ if(!subdiv)F.push({i:Array.from({length:n},(_,k)=>n+k),cap:true});
+ for(let i=0;i<n;i++){const j=(i+1)%n;F.push({i:[i,j,n+j,n+i],side:true});}
  for(const f of F){
    const poly=f.i.map(k=>V[k]),nr=newell(poly);
    const fc=[0,0,0];for(const v of poly){fc[0]+=v[0];fc[1]+=v[1];fc[2]+=v[2];}
@@ -188,7 +215,7 @@ function pieceGeom(p){
    if((fc[0]-C[0])*nr[0]+(fc[1]-C[1])*nr[1]+(fc[2]-C[2])*nr[2]<0){nr[0]*=-1;nr[1]*=-1;nr[2]*=-1;}
    f.n=nr;
  }
- return p._g={V,F,C};
+ return p._g={V,F,C,subdiv};
 }
 // a face shows when its normal turns back toward the camera at (0,-TILT,-RISE)
 function faceLit(n,cs,sn){
@@ -225,7 +252,8 @@ function faceLit(n,cs,sn){
    the geometry; larger is a longer lens. Sorting still uses depth(), which is
    unaffected, and a planar face stays planar under a perspective divide, so
    nothing downstream changes. */
-const CAMD=1020;
+let CAMD=1020;
+try{Object.defineProperty(window,'__CAMD',{set:v=>{CAMD=v;},get:()=>CAMD});}catch(e){}
 const prj=(v,cs,sn)=>{
  const zz=-v[0]*sn+v[2]*cs;
  const k=CAMD/(CAMD-(TILT*v[1]+RISE*zz));
@@ -246,6 +274,7 @@ function studCovered(all,p,sx,sz){const top=p.y+p.h;
    if(sx>bb[0]&&sx<bb[2]&&sz>bb[1]&&sz<bb[3])return true;}
  return false;}
 
+let SORTK=0;   // 0 = face centroid. Sliding toward the nearest corner was measured and does not help.
 function drawPieces(c,pieces,TH,yaw,depthPass){
  const cs=Math.cos(yaw),sn=Math.sin(yaw);
  const depth=v=>TILT*v[1]+RISE*(-v[0]*sn+v[2]*cs);
@@ -266,8 +295,9 @@ function drawPieces(c,pieces,TH,yaw,depthPass){
    for(const f of g.F){
      const L=faceLit(f.n,cs,sn);
      if(!L.vis)continue;
-     let d=0;for(const k of f.i)d+=depth(g.V[k]);
+     let d=0,dm=-1e9;for(const k of f.i){const q=depth(g.V[k]);d+=q;if(q>dm)dm=q;}
      d/=f.i.length;
+     if(SORTK)d+=(dm-d)*SORTK;   // slide the key toward the face's nearest corner
      if(f.cap&&d>capD)capD=d;
      items.push({d,f,g,col,clear,p,L,hl,jit});
    }
@@ -280,7 +310,8 @@ function drawPieces(c,pieces,TH,yaw,depthPass){
        const v=[sx*STUD,top,sz*STUD-CZ];
        // a stud must never sort behind the face it stands on -- on a big flat
        // piece the face's own centroid depth is deeper than half its studs
-       items.push({d:Math.max(depth(v),capD)+0.02,stud:v,col,clear:false,p,hl,jit});
+       items.push({d:(g.subdiv?depth(v):Math.max(depth(v),capD))+0.02,
+                   stud:v,col,clear:false,p,hl,jit});
      }
    }
  }
@@ -1399,7 +1430,7 @@ const PART_PAL={
            Lance:'ice',Catapult:'sand'},
 };
 // four options everywhere at level one, everything open by twelve
-const UNLOCK_STEPS=[0,0,0,0,2,3,5,6,8,10,12,14];
+const UNLOCK_STEPS=[0,0,0,0,1,2,3,4,5,6,7,8];
 (function(){
  const slots={COCKPITS,BODIES,WINGS,ENGINES,TAILS,DEFENSES};
  for(const k in slots){
@@ -1537,9 +1568,10 @@ function plateSprite(yaw,ss){
    SCENES
    ======================================================================= */
 const SHOW_PAD=false;   // the green baseplate. Flip to bring it back.
-const BUILD_ID='b18';
+const BUILD_ID='b21';
 const SCENE={BUILD:0,LOADOUT:1,FLY:2};
 let scene=SCENE.BUILD;
+let uiTop=176;          // bottom of the wrapped tab block, measured after layout
 let level=1;const MAX_LEVEL=20;
 let totalCrystals=0,unlockPoints=0,chosenPower='shield';
 let hiScore=0,hiCombo=0,hiLevel=0;
@@ -1647,7 +1679,7 @@ const missingSlot=()=>SLOTS.find(s=>NEEDED.indexOf(s.key)>=0&&ship[s.key]<0&&slo
 let activeSlot=0,bob=0,buildYaw=0.35,yawSpin=0.004,dragging=false,dragX=0,dragged=false;
 const isUnlocked=it=>unlockPoints>=(it.unlock||0);
 const seenParts=new Set();
-const isNew=(key,i,it)=>(it.unlock||0)>0&&(it.unlock||0)===unlockPoints&&!seenParts.has(key+i);
+const isNew=(key,i,it)=>isUnlocked(it)&&(it.unlock||0)>0&&!seenParts.has(key+i);
 const slotHasNew=sl=>sl.list.some((it,i)=>isNew(sl.key,i,it));
 function cycleSlot(i,dir){const s=SLOTS[i],n=s.list.length;let idx=ship[s.key];
   if(idx<0)idx=dir>0?-1:0;                       // first press fits the first part
@@ -1670,7 +1702,7 @@ function buildUI(){
      '<div style="color:#9DB4C6;font-size:11px;letter-spacing:1px">→ '+planetFor(level).n+'</div>'+
      '<div style="color:#56E646">💎 '+totalCrystals+'</div><div>'+hs+'</div></div>'+
  '</div>'+
- '<div style="position:absolute;top:74px;left:0;right:0;display:flex;justify-content:center;gap:6px;flex-wrap:wrap;padding:0 10px">'+
+ '<div id="tabs" style="position:absolute;top:74px;left:0;right:0;display:flex;justify-content:center;gap:6px;flex-wrap:wrap;padding:0 10px">'+
    SLOTS.map((s,i)=>slotOpen(s)?'<button class="slot-tab pe" data-i="'+i+'" style="'+
      'background:'+(i===activeSlot?'#F2CD37':(NEEDED.indexOf(s.key)>=0&&ship[s.key]<0?'#3A2E33':'#2C4257'))+';'+
      'color:'+(i===activeSlot?'#1B2A34':(NEEDED.indexOf(s.key)>=0&&ship[s.key]<0?'#B08894':'#9DB4C6'))+';'+
@@ -1698,7 +1730,7 @@ function buildUI(){
    '<button class="cyc pe" data-d="1" style="background:#F4F4F4;border:none;border-radius:50%;'+
      'width:58px;height:58px;font-size:26px;color:#1B2A34;cursor:pointer;box-shadow:0 5px 0 #9aa3a8">▶</button>'+
  '</div>'+
- '<div style="position:absolute;top:152px;left:0;right:0;text-align:center;color:#6B8398;font-size:11px;letter-spacing:1px">'+
+ '<div id="hint" style="position:absolute;top:152px;left:0;right:0;text-align:center;color:#6B8398;font-size:11px;letter-spacing:1px">'+
    '↔ drag the ship to spin it</div>'+
    '<div style="position:absolute;bottom:4px;right:8px;color:#43596D;font-size:10px;letter-spacing:1px">'+BUILD_ID+'</div>'+
  '<div style="position:absolute;bottom:18px;left:0;right:0;display:flex;justify-content:center">'+
@@ -1706,6 +1738,16 @@ function buildUI(){
      return m?'<button id="next" class="brick-btn" style="background:#44586B;color:#A9BCCB;'+
        'box-shadow:0 5px 0 #2B3B49,0 8px 12px rgba(0,0,0,.45)">FIT A '+m.label+'</button>'
       :'<button id="next" class="brick-btn green">⚡ CHOOSE POWER-UP</button>';})()+'</div>';
+ // The tabs wrap to two or three rows depending on width and on how many
+ // carry a NEW mark, so the hint and the model have to sit below wherever they
+ // actually ended up rather than at a fixed 152px.
+ (function(){
+   const t=document.getElementById('tabs'),h=document.getElementById('hint');
+   if(!t)return;
+   const b2=t.offsetTop+t.offsetHeight+8;
+   if(h)h.style.top=b2+'px';
+   uiTop=b2+22;
+ })();
  ui.querySelectorAll('.slot-tab').forEach(b=>b.onclick=()=>selectSlot(+b.dataset.i));
  ui.querySelectorAll('.cyc').forEach(b=>b.onclick=()=>cycleSlot(activeSlot,+b.dataset.d));
  document.getElementById('next').onclick=()=>{const m=missingSlot();
@@ -1724,7 +1766,7 @@ function drawBuild(){
  if(!dragging)buildYaw+=yawSpin;
  // fit pad + model to the free band, instead of a fixed fraction of the screen
  const fp=shipFootprint();
- const bandTop=176,bandBot=H-158,band=Math.max(120,bandBot-bandTop);
+ const bandTop=Math.max(150,uiTop),bandBot=H-158,band=Math.max(120,bandBot-bandTop);
  const empty=!shipPieces().length;
  // an empty pad is scenery, not the subject -- left to fill the band it swamps
  // the screen and swallows the caption
