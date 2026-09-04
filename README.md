@@ -55,6 +55,12 @@ membrane or a rigged mast with canvas; engines might be ion nacelles or a
 pair of broomsticks. They mount the same way regardless, so anything combines
 with anything and the results are meant to look a bit mad.
 
+Each option is a whole sub-model rather than a variation on a spaceship
+part -- cockpits run 40-70 pieces, a finished ship 100-160. Density comes
+from generators (`strip`, `pipes`, `panel`, `railing`, `crate`, `lamp`,
+`ladder`, `machine`) so a line of code adds fifteen pieces of texture instead
+of fifteen lines.
+
 Newly unlocked options are badged NEW until he looks at them.
 
 ## Colour

@@ -264,6 +264,42 @@ const mirX=ps=>ps.concat(ps.map(p=>{
 const offX=(ps,dx)=>ps.map(p=>{const q=Object.assign({},p);
  delete q._g;delete q._bb;q.pts=p.pts.map(a=>[a[0]+dx,a[1]]);return q;});
 
+/* ---------- detail generators: texture by the line, not by the piece ---------- */
+// alternating plates along z -- the classic greeble strip
+const strip=(x,z,n,y,c1,c2,st)=>{const o=[];st=st||1;
+ for(let i=0;i<n;i++)o.push(bx(x,z+i*st,st*0.78,st*0.72,y,1,i%2?c1:c2,i%2?'trim':'dark'));
+ return o;};
+// a bank of pipes running back along z
+const pipes=(x,yy,n,z,len,c,gap)=>{const o=[];gap=gap||0.9;
+ for(let i=0;i<n;i++)o.push(tube(x+i*gap,yy,gap*0.34,z,len,c,'light',{n:6}));
+ return o;};
+// a raised panel inside a darker frame
+const panel=(x,z,w,d,y,c,cb)=>[bx(x,z,w,d,y,1,cb||DGREY,'dark'),
+ bx(x+0.3,z+0.3,w-0.6,d-0.6,y+1,1,c,'trim')];
+// posts carrying a rail
+const railing=(x,z,len,y,c)=>{const o=[],n=Math.max(2,Math.round(len/1.4));
+ for(let i=0;i<n;i++)o.push(cyl(x,z+i*(len/(n-1)),0.2,y,2.6,c,'light',{n:6}));
+ o.push(bx(x-0.22,z-0.2,0.44,len+0.4,y+2.6,0.7,c,'light'));return o;};
+// a cross-braced crate
+const crate=(x,z,y,sz,c,cb)=>[bx(x,z,sz,sz,y,sz*1.1,c,'dark'),
+ bx(x+sz*0.4,z-0.06,sz*0.2,sz+0.12,y+sz*0.25,sz*0.6,cb,'accent'),
+ bx(x-0.06,z+sz*0.4,sz+0.12,sz*0.2,y+sz*0.25,sz*0.6,cb,'accent')];
+// a small round lamp
+const lamp=(x,z,y,c)=>[cyl(x,z,0.44,y,0.8,DGREY,'dark',{n:6}),
+ cyl(x,z,0.33,y+0.8,0.9,c,'glass',{n:6})];
+// a rung ladder
+const ladder=(x,z,y,h,c)=>{const o=[cyl(x-0.5,z,0.16,y,h,c,'light',{n:6}),
+ cyl(x+0.5,z,0.16,y,h,c,'light',{n:6})];
+ for(let i=1;i<h/1.6;i++)o.push(bx(x-0.5,z-0.14,1,0.28,y+i*1.6,0.4,c,'light'));
+ return o;};
+// a stepped block cluster -- reads as machinery
+const machine=(x,z,y,seed,c1,c2)=>{const o=[];let sd=seed*9301+49297;
+ const rnd=()=>{sd=(sd*9301+49297)%233280;return sd/233280;};
+ for(let i=0;i<5;i++)o.push(bx(x+((rnd()*3)|0)*0.7,z+((rnd()*3)|0)*0.7,
+   0.6+rnd()*0.8,0.6+rnd()*0.8,y+((rnd()*3)|0),1+((rnd()*3)|0),
+   rnd()<0.5?c1:c2,rnd()<0.5?'dark':'light'));
+ return o;};
+
 /* =======================================================================
    THE PARTS
    Nose at z=0, tail at z=25. Cockpit -3..9, hull 7..18, engine 18..25.
@@ -289,150 +325,218 @@ const pilot=(x,z,y,shirt)=>[
  cyl(x,z,0.8,y+2.2,1,WHITE,'trim',{n:10,ts:1.15}),
 ];
 const COCKPITS=[
- // Classic Space: long grey wedge, blue block, trans-yellow canopy, antennae
+ // Classic Space explorer: long wedge prow, greebled flanks, crew ladder
  {name:'Classic',unlock:0,pieces:[
-   px([[-3,9],[3,9],[2,4],[-2,4]],0,1,GREY,'light'),
-   px([[-2,4],[2,4],[1.1,0],[-1.1,0]],0,1,GREY,'light'),
-   px([[-1.1,0],[1.1,0],[0.6,-2.5],[-0.6,-2.5]],0,1,GREY,'light'),
-   sl(-2.5,2,5,2,1,4,'n',BLUE,'hull'),
-   bx(-2.5,4,5,4,1,4,BLUE,'hull'),
-   bx(-3,8,6,1,1,4,BLUE,'hull'),
-   bx(-1.6,1.4,3.2,1.2,1,2,DGREY,'dark'),
-   sl(-2,3.4,4,2.6,5,4,'n',TYEL,'glass'),
-   bx(-2,6,4,1.6,5,4,TYEL,'glass'),
-   sl(-2,7.6,4,1.2,5,4,'s',TYEL,'glass'),
-   ...pilot(0,5.4,5,RED),
-   ...mirX([bx(2.1,4.4,0.9,3.2,5,1,RED,'accent')]),
-   ...mirX([bx(2.6,4,0.5,4,1,4,WHITE,'trim')]),
-   ...mirX([bx(1.4,8.2,1.4,0.8,5,1,YEL,'accent')]),
-   ...mirX([tube(1.05,2.2,0.2,-5.5,6,GREY,'light',{n:6})]),
-   ...mirX([bx(0.65,-0.4,0.8,1,1,1,RED,'accent')]),
+   px([[-4.4,10],[4.4,10],[3,3],[-3,3]],0,1,GREY,'light'),
+   px([[-3,3],[3,3],[1.4,-2],[-1.4,-2]],0,1,GREY,'light'),
+   px([[-1.4,-2],[1.4,-2],[0.7,-5],[-0.7,-5]],0,1,GREY,'light'),
+   px([[-2.6,3.4],[2.6,3.4],[1.3,-1.4],[-1.3,-1.4]],1,1,WHITE,'trim'),
+   sl(-2.8,1.6,5.6,2.4,1,5,'n',BLUE,'hull'),
+   bx(-2.8,4,5.6,4.4,1,5,BLUE,'hull'),
+   bx(-3.4,8.4,6.8,1.6,1,5,BLUE,'hull'),
+   sl(-2.2,3.2,4.4,3,6,4,'n',TYEL,'glass'),
+   bx(-2.2,6.2,4.4,2,6,4,TYEL,'glass'),
+   sl(-2.2,8.2,4.4,1.4,6,4,'s',TYEL,'glass'),
+   ...pilot(0,5.6,6,RED),
+   ...mirX([
+     ...strip(2.9,3.8,5,1,WHITE,DGREY),
+     ...panel(3.1,3.6,1.5,4.4,1,BLUE,DGREY),
+     ...pipes(2.95,3,3,2.2,5,GREY,0.7),
+     bx(2.4,3.4,0.7,5.4,6,1,RED,'accent'),
+     ...lamp(3.4,2.2,1,TORG),
+     ...ladder(3.6,9,1,6,GREY),
+     bx(1.2,9.4,1.4,0.9,6,1,YEL,'accent'),
+     tube(1.15,2.6,0.2,-6.4,7,GREY,'light',{n:6}),
+     bx(0.75,-2.8,0.9,1.1,1,1,RED,'accent'),
+     ...crate(2,-0.6,1,1.3,WHITE,RED),
+   ]),
+   bx(-1.8,1.2,3.6,1.4,1,2,DGREY,'dark'),
+   ...strip(-0.5,0.2,3,10,GREY,DGREY,0.8),
  ]},
- // fat white-and-orange racer with a big bubble dome
+ // fat orange racer: dome, side intakes, exhaust pipes, spoiler
  {name:'Bubble',unlock:0,pieces:[
-   px([[-3.6,8.5],[3.6,8.5],[2.6,2],[-2.6,2]],0,1,WHITE,'hull'),
-   px([[-2.6,2],[2.6,2],[1.3,-1.8],[-1.3,-1.8]],0,1,WHITE,'hull'),
-   sl(-3,0.8,6,2.2,1,4,'n',ORG,'accent'),
-   bx(-3,3,6,5.5,1,4,ORG,'accent'),
-   bx(-3,8,6,0.8,1,5,WHITE,'hull'),
-   cyl(0,5,3,5,3,TBLU,'glass',{n:16}),
-   cyl(0,5,3,8,2.6,TBLU,'glass',{n:16,ts:0.38}),
-   cyl(0,5,3.2,4.4,0.8,WHITE,'hull',{n:16}),
-   ...pilot(0,5,5,ORG),
+   px([[-4.6,9.5],[4.6,9.5],[3.2,2],[-3.2,2]],0,1,WHITE,'hull'),
+   px([[-3.2,2],[3.2,2],[1.6,-3],[-1.6,-3]],0,1,WHITE,'hull'),
+   sl(-3.4,0.6,6.8,2.6,1,5,'n',ORG,'accent'),
+   bx(-3.4,3.2,6.8,5.4,1,5,ORG,'accent'),
+   bx(-3.4,8.4,6.8,1.4,1,5,WHITE,'hull'),
+   cyl(0,5.4,3.5,6,3.4,TBLU,'glass',{n:16}),
+   cyl(0,5.4,3.5,9.4,3,TBLU,'glass',{n:16,ts:0.34}),
+   cyl(0,5.4,3.7,5.2,1,WHITE,'hull',{n:16}),
+   ...pilot(0,5.4,6,ORG),
    ...mirX([
-     px([[2.5,3],[4.4,4.6],[4.4,7.2],[2.5,7.2]],1,3,WHITE,'hull'),
-     bx(2.7,1.4,1.2,1.6,1,2,WHITE,'hull'),
-     tube(3.3,2,0.55,0.2,3.2,DGREY,'dark',{n:8}),
-     bx(3.4,5,0.9,1.6,4,1,AZ,'accent'),
+     px([[3.3,2.6],[5.6,4.4],[5.6,7.6],[3.3,8]],1,4,ORG,'accent'),
+     ...pipes(4.2,3,3,1.6,4,GREY,0.75),
+     tube(4.4,2.6,0.85,0.2,3.4,DGREY,'dark',{n:10}),
+     tube(4.4,2.6,1,3.2,0.7,BLACK,'dark',{n:10}),
+     ...panel(3.6,4.6,1.6,3,5,WHITE,BLACK),
+     ...lamp(2.4,-1.2,1,TORG),
+     bx(1.5,-2.6,1.2,1.6,1,3,BLACK,'dark'),
+     ...strip(3.5,3,4,5,YEL,BLACK,0.8),
    ]),
-   ...mirX([bx(1.3,-0.6,1,1.6,1,3,DGREY,'dark')]),
+   bx(-2.4,9,4.8,0.7,6,3,ORG,'accent'),
+   px([[-2,9.2],[2,9.2],[1.4,10.4],[-1.4,10.4]],9,1,BLACK,'dark'),
  ]},
- // long black-and-white blade with an azure stripe
+ // black-and-white blade with an azure spine and a sensor mast
  {name:'Interceptor',unlock:2,pieces:[
-   px([[-3,8.5],[3,8.5],[1.1,-3.5]],0,1,BLACK,'dark'),
-   px([[-1.7,4],[1.7,4],[0.85,-1.4]],1,1,WHITE,'hull'),
-   sl(-2,1.6,4,3,1,4,'n',BLACK,'dark'),
-   bx(-2,4.6,4,3.9,1,4,BLACK,'dark'),
-   sl(-1.7,3.2,3.4,3.6,5,3,'n',TBLU,'glass'),
-   bx(-1.7,6.8,3.4,1.2,5,3,AZ,'accent'),
-   ...pilot(0,5.4,5,AZ),
+   px([[-4,10],[4,10],[1.4,-6]],0,1,BLACK,'dark'),
+   px([[-2.4,5],[2.4,5],[1,-2.6]],1,1,WHITE,'hull'),
+   sl(-2.6,1.4,5.2,3.4,1,5,'n',BLACK,'dark'),
+   bx(-2.6,4.8,5.2,4.4,1,5,BLACK,'dark'),
+   bx(-3,8.6,6,1.4,1,5,BLACK,'dark'),
+   sl(-2.1,3.4,4.2,4.2,6,4,'n',TBLU,'glass'),
+   bx(-2.1,7.6,4.2,1.4,6,3,AZ,'accent'),
+   ...pilot(0,5.8,6,AZ),
    ...mirX([
-     px([[1,0.8],[2.9,4.6],[2.1,5.1],[0.85,1.8]],0,2,WHITE,'hull'),
-     bx(2,5.1,1,3.4,1,4,AZ,'accent'),
-     bx(2.1,3.2,0.7,1.8,1,2,AZ,'accent'),
-     bx(2,8,1,0.8,5,1,AZ,'accent'),
-     tube(2.5,3,0.28,0.2,4.4,GREY,'light',{n:6}),
-     bx(1.2,-1.2,0.7,1.6,1,2,RED,'accent'),
+     px([[1.3,0.6],[3.9,5.2],[2.9,5.9],[1,2]],0,3,WHITE,'hull'),
+     bx(2.7,5.4,1.3,4,1,5,AZ,'accent'),
+     ...panel(2.75,5.8,1.2,3,6,BLACK,WHITE),
+     ...strip(4,5.4,4,1,WHITE,BLACK,0.9),
+     ...pipes(3,2.6,3,1,4.4,SILVER,0.7),
+     tube(3.2,3.4,0.26,-1.4,5.4,GREY,'light',{n:6}),
+     ...lamp(2.1,-0.6,1,'#FF4444'),
+     bx(1.5,9,1.4,1,6,1,AZ,'accent'),
    ]),
+   cyl(0,9.2,0.28,6,7,SILVER,'light',{n:6}),
+   cyl(0,9.2,0.75,12.6,0.9,AZ,'accent',{n:8}),
+   bx(-1.6,-2.6,3.2,1.6,1,2,WHITE,'hull'),
  ]},
- // two separate red pods with a bridge slung between them
+ // two red pods bridged over a cargo deck
  {name:'Twin Pod',unlock:4,pieces:[
+   px([[-4.6,10],[4.6,10],[3.4,1.6],[-3.4,1.6]],0,1,WHITE,'trim'),
    ...mirX([
-     px([[0.9,8.5],[3.8,8.5],[3.1,1.8],[1.3,1.8]],0,1,WHITE,'trim'),
-     sl(1.1,0.6,2.7,2,1,4,'n',RED,'hull'),
-     bx(1.1,2.6,2.7,5.4,1,4,RED,'hull'),
-     sl(1.3,3.2,2.3,2.8,5,3,'n',TBLU,'glass'),
-     bx(1.3,6,2.3,1.6,5,3,TBLU,'glass'),
-     bx(1.1,7.6,2.7,0.9,5,1,WHITE,'trim'),
-     bx(1.1,2.6,2.7,0.8,5,1,YEL,'accent'),
-     ...pilot(2.45,5,5,WHITE),
-     tube(2.45,2.2,0.22,-3.8,5,GREY,'light',{n:6}),
-     bx(1.7,0,1.5,1,1,2,DGREY,'dark'),
-     tube(3.4,1.5,0.6,3,3,DGREY,'dark',{n:8}),
+     sl(1.2,0.2,3.2,2.2,1,5,'n',RED,'hull'),
+     bx(1.2,2.4,3.2,6,1,5,RED,'hull'),
+     sl(1.4,3.2,2.8,3.2,6,4,'n',TBLU,'glass'),
+     bx(1.4,6.4,2.8,1.8,6,4,TBLU,'glass'),
+     bx(1.2,8.2,3.2,1.2,6,1,WHITE,'trim'),
+     bx(1.2,2.4,3.2,0.9,6,1,YEL,'accent'),
+     ...pilot(2.8,5.4,6,WHITE),
+     tube(2.8,2.4,0.24,-4.4,5.4,GREY,'light',{n:6}),
+     bx(2,-0.4,1.6,1.2,1,3,DGREY,'dark'),
+     tube(4.4,1.8,0.75,2.6,4,DGREY,'dark',{n:8}),
+     tube(4.4,1.8,0.9,6.2,0.8,BLACK,'dark',{n:8}),
+     ...strip(4.5,2.8,4,1,WHITE,BLACK,0.9),
+     ...lamp(1.6,0.2,6,TORG),
+     ...ladder(1.05,8.8,1,6,GREY),
    ]),
-   bx(-1.1,4.4,2.2,3.4,0,2,DGREY,'dark'),
-   bx(-1.3,4.8,2.6,2.4,2,1,YEL,'accent'),
-   px([[-3,8.5],[3,8.5],[2.1,6.2],[-2.1,6.2]],0,1,DGREY,'dark'),
-   cyl(0,6,1.1,2,2,TORG,'glass',{n:10}),
+   bx(-1.2,3.6,2.4,5,0,3,DGREY,'dark'),
+   bx(-1.4,4,2.8,4.2,3,1,YEL,'accent'),
+   ...crate(-1,4.6,4,1.6,WHITE,RED),
+   ...crate(-1,6.6,4,1.6,BLUE,WHITE),
+   cyl(0,2.8,1.1,3,2.4,TORG,'glass',{n:10}),
+   ...railing(-1.5,3.8,4.6,4,GREY),
+   ...railing(1.5,3.8,4.6,4,GREY),
+   px([[-3.4,10],[3.4,10],[2.4,7.6],[-2.4,7.6]],0,1,DGREY,'dark'),
  ]},
- // silver-and-lime flying saucer with a purple bubble and running lights
+ // a proper flying saucer: rim lights, legs, tractor emitter
  {name:'Saucer',unlock:6,pieces:[
-   cyl(0,4,5,0,1.5,SILVER,'light',{n:18}),
-   cyl(0,4,4.2,1.5,2,LIME,'accent',{n:18}),
-   cyl(0,4,2.8,3.5,2,SILVER,'light',{n:16}),
-   ...pilot(0,4,3.8,LIME),
-   cyl(0,4,2.5,5.5,2.8,TPUR,'glass',{n:16,ts:0.42}),
-   ...(function(){const o=[];for(let i=0;i<8;i++){const a=i/8*Math.PI*2+0.4;
-     o.push(cyl(Math.cos(a)*4.5,4+Math.sin(a)*4.5,0.5,1.5,1.2,
-       i%2?TORG:TBLU,'glass',{n:6}));}return o;})(),
-   ...mirX([tube(3.2,1.4,0.7,1.6,3,DGREY,'dark',{n:8})]),
-   ...mirX([bx(1.4,-0.6,1.2,1.4,1.5,1,PURP,'accent')]),
-   px([[-3,9],[3,9],[2.4,7.4],[-2.4,7.4]],0,1,SILVER,'light'),
- ]},
- // horned dragon head: dark red, gold trim, teeth and burning eyes
- {name:'Dragon',unlock:8,pieces:[
-   px([[-3.6,7],[3.6,7],[2.1,-1.4],[-2.1,-1.4]],0,1,BLACK,'dark'),
-   sl(-2.1,-1.4,4.2,3,1,3,'n',DRED,'hull'),
-   bx(-2.5,1.6,5,4,1,5,RED,'hull'),
-   bx(-2.7,5.6,5.4,2.6,1,5,RED,'hull'),
-   bx(-2.7,2.2,5.4,1.6,6,2,GOLD,'accent'),
-   ...mirX([cyl(1.5,2.9,0.9,6,2.2,TORG,'glass',{n:10})]),
-   ...mirX([
-     px([[2.1,2.6],[4.8,0.2],[5.4,2.4],[2.8,4.2]],5,2,GOLD,'accent'),
-     px([[2.3,4.4],[4.6,3.8],[4.2,6],[2.3,6]],4,2,DRED,'hull'),
-     tube(3.1,7,0.3,0.6,4,GOLD,'accent',{n:6}),
-     bx(0.7,-1.6,0.7,0.9,1,2,WHITE,'trim'),
-     bx(1.7,-1,0.7,0.9,1,2,WHITE,'trim'),
-     bx(2.6,6.4,0.9,1.4,6,2,GOLD,'accent'),
-   ]),
-   bx(-1.5,4.6,3,2.2,6,3,GOLD,'accent'),
-   bx(-0.9,6.2,1.8,1.4,9,2,DRED,'hull'),
-   bx(-1.8,0,3.6,1.4,1,3,DRED,'hull'),
- ]},
- // a stone turret with battlements and a flag -- straight off a castle box
- {name:'Castle',unlock:3,pieces:[
-   px([[-3,9],[3,9],[2.4,2.6],[-2.4,2.6]],0,1,STONE,'light'),
-   cyl(0,5,2.9,1,7,STONE,'light',{n:14}),
-   cyl(0,5,3.1,1,1.2,DGREY,'dark',{n:14}),
-   cyl(0,5,3.05,5,0.9,DGREY,'dark',{n:14}),
+   cyl(0,3.6,6,0,1.6,SILVER,'light',{n:20}),
+   cyl(0,3.6,5.1,1.6,2,LIME,'accent',{n:20}),
+   cyl(0,3.6,4,3.6,1.6,SILVER,'light',{n:18}),
+   cyl(0,3.6,3,5.2,2.4,DPURP,'hull',{n:16}),
+   cyl(0,3.6,2.7,7.6,3.4,TPUR,'glass',{n:16,ts:0.42}),
+   ...pilot(0,3.6,5.4,LIME),
+   ...(function(){const o=[];for(let i=0;i<10;i++){const a=i/10*Math.PI*2+0.3;
+     o.push(...lamp(Math.cos(a)*5.4,3.6+Math.sin(a)*5.4,1.6,i%2?TORG:TBLU));}
+     return o;})(),
    ...(function(){const o=[];for(let i=0;i<8;i++){const a=i/8*Math.PI*2+0.2;
-     o.push(bx(Math.cos(a)*2.4-0.5,5+Math.sin(a)*2.4-0.5,1,1,8,2.6,STONE,'light'));}
+     o.push(bx(Math.cos(a)*4.4-0.45,3.6+Math.sin(a)*4.4-0.45,0.9,0.9,3.6,1,PURP,'hull'));}
      return o;})(),
-   bx(-0.9,2.05,1.8,0.9,3,3.2,DGREY,'dark'),
-   bx(-0.6,1.95,1.2,0.7,3.4,2.4,TYEL,'glass'),
-   bx(-1,2.05,2,0.8,0.6,2,DWOOD,'dark'),
-   cyl(0,5,0.24,10.6,6,DGREY,'dark',{n:6}),
-   bx(0.12,5.1,0.3,3.2,13.4,3.4,RED,'accent'),
-   bx(0.15,5.3,0.3,1.1,13.4,3.4,WHITE,'trim'),
-   ...mirX([bx(2.2,3.6,0.9,2.6,3,1,DGREY,'dark'),
-            cyl(2.1,7,0.5,1,4,STONE,'light',{n:8})]),
+   ...mirX([
+     tube(3.6,1.2,0.85,1.4,3.6,DGREY,'dark',{n:8}),
+     cyl(3.6,2.4,1.1,0,1,DGREY,'dark',{n:8}),
+     bx(4.4,4.6,1,1.6,1.6,2,LIME,'accent'),
+   ]),
+   cyl(0,-1.4,1.5,0.4,1,DGREY,'dark',{n:12}),
+   cyl(0,-1.4,1.2,1.4,1.6,TGRN,'glass',{n:12}),
+   px([[-3,10],[3,10],[2.2,8],[-2.2,8]],0,1,SILVER,'light'),
  ]},
- // pointed hat, gold stars, a crystal ball on the nose
+ // a horned head with a jaw, teeth and a gold crest
+ {name:'Dragon',unlock:8,pieces:[
+   px([[-4.6,8],[4.6,8],[2.6,-3],[-2.6,-3]],0,1,BLACK,'dark'),
+   sl(-2.6,-3,5.2,3.6,1,4,'n',DRED,'hull'),
+   bx(-3.2,0.6,6.4,4.4,1,6,RED,'hull'),
+   bx(-3.6,5,7.2,3.4,1,6,RED,'hull'),
+   bx(-3.6,1.2,7.2,1.8,7,2,GOLD,'accent'),
+   ...mirX([
+     cyl(2,1.9,1.15,7,2.4,TORG,'glass',{n:10}),
+     cyl(2,1.9,1.35,6.6,0.6,GOLD,'accent',{n:10}),
+     px([[2.6,1.6],[6,-1.4],[6.8,1.4],[3.4,3.8]],6,2.4,GOLD,'accent'),
+     px([[2.8,3.8],[5.8,3],[5.2,5.8],[2.8,5.8]],5,2.4,DRED,'hull'),
+     tube(3.8,7,0.34,0.4,5,GOLD,'accent',{n:6}),
+     bx(0.9,-3.4,0.9,1.1,1,2.4,WHITE,'trim'),
+     bx(2.1,-2.6,0.9,1.1,1,2.4,WHITE,'trim'),
+     bx(3.2,7.6,1.1,1.6,7,2.4,GOLD,'accent'),
+     ...strip(3.7,1.4,4,1,DRED,BLACK,0.9),
+     ...lamp(2.6,6.6,7,TORG),
+   ]),
+   bx(-1.8,4.2,3.6,2.6,7,4,GOLD,'accent'),
+   bx(-1.1,5.8,2.2,1.8,11,2.6,DRED,'hull'),
+   bx(-2.2,-1.4,4.4,1.8,1,4,DRED,'hull'),
+   ...strip(-0.45,-2.6,4,5,GOLD,DRED,0.85),
+ ]},
+ // a castle gatehouse: two towers, a wall, a portcullis, banners
+ {name:'Castle',unlock:3,pieces:[
+   px([[-5,10],[5,10],[3.6,0.6],[-3.6,0.6]],0,1,STONE,'light'),
+   bx(-2.6,1.6,5.2,4.4,1,7,STONE,'light'),
+   ...(function(){const o=[];for(let i=0;i<6;i++)
+     o.push(bx(-2.5+i*0.9,1.7,0.7,0.9,8,2.6,DGREY,'dark'));return o;})(),
+   bx(-1.5,1.5,3,0.6,1,5,BLACK,'dark'),
+   ...(function(){const o=[];for(let i=0;i<4;i++)
+     o.push(bx(-1.3+i*0.75,1.4,0.24,0.5,1,5,DGREY,'dark'));return o;})(),
+   bx(-1.5,1.5,3,0.6,6,1.4,DWOOD,'dark'),
+   ...mirX([
+     cyl(3.4,3.4,2.4,0,10,STONE,'light',{n:14}),
+     cyl(3.4,3.4,2.6,0,1.2,DGREY,'dark',{n:14}),
+     cyl(3.4,3.4,2.5,6,0.9,DGREY,'dark',{n:14}),
+     ...(function(){const o=[];for(let i=0;i<7;i++){const a=i/7*Math.PI*2+0.2;
+       o.push(bx(3.4+Math.cos(a)*2-0.45,3.4+Math.sin(a)*2-0.45,0.9,0.9,10,2.6,STONE,'light'));}
+       return o;})(),
+     bx(2.9,1.5,1,0.8,4,2.6,DGREY,'dark'),
+     bx(3.1,1.4,0.6,0.7,4.4,2,TYEL,'glass'),
+     cyl(3.4,3.4,0.24,12.6,6,DGREY,'dark',{n:6}),
+     bx(3.5,3.5,0.3,2.8,15.4,3.2,RED,'accent'),
+     bx(3.53,3.7,0.3,1,15.4,3.2,WHITE,'trim'),
+     ...lamp(1.9,0.9,1,TORG),
+     ...strip(2.1,5,4,1,STONE,DGREY,0.9),
+   ]),
+   ...railing(-2.2,2.4,3.4,8,DGREY),
+   ...railing(2.2,2.4,3.4,8,DGREY),
+   ...crate(-1.1,3.4,8,1.5,DWOOD,WOOD),
+   bx(-3.6,8.8,7.2,1.2,1,5,STONE,'light'),
+   ...strip(-0.45,-0.2,3,1,STONE,DGREY,0.9),
+ ]},
+ // a wizard tower: conical roof, stars, a balcony and a crystal ball
  {name:'Wizard',unlock:7,pieces:[
-   px([[-3,9],[3,9],[2.2,2.4],[-2.2,2.4]],0,1,DPURP,'hull'),
-   cyl(0,5,2.5,1,4,DPURP,'hull',{n:12}),
-   cyl(0,5,2.75,1,1,GOLD,'accent',{n:12}),
-   cyl(0,5,2.75,5,8,PURP,'hull',{n:12,ts:0.1}),
-   ...(function(){const o=[];for(let i=0;i<5;i++){const a=i/5*Math.PI*2+0.4;
-     o.push(cyl(Math.cos(a)*1.9,5+Math.sin(a)*1.9,0.42,6.4,1,GOLD,'accent',{n:6}));}
+   px([[-4.6,10],[4.6,10],[3.2,0.4],[-3.2,0.4]],0,1,DPURP,'hull'),
+   cyl(0,4.4,3.4,1,7,DPURP,'hull',{n:14}),
+   cyl(0,4.4,3.6,1,1.2,GOLD,'accent',{n:14}),
+   cyl(0,4.4,3.55,5,0.9,GOLD,'accent',{n:14}),
+   cyl(0,4.4,3.9,8,1,PURP,'hull',{n:14}),
+   cyl(0,4.4,3.7,9,9,PURP,'hull',{n:14,ts:0.08}),
+   ...(function(){const o=[];for(let i=0;i<7;i++){const a=i/7*Math.PI*2+0.4;
+     o.push(cyl(Math.cos(a)*2.6,4.4+Math.sin(a)*2.6,0.44,10.4,1,GOLD,'accent',{n:6}));}
      return o;})(),
-   cyl(0,1.4,1.3,0.4,1,GOLD,'accent',{n:10}),
-   cyl(0,1.4,1.15,1.4,2.6,TPUR,'glass',{n:12}),
-   ...mirX([cyl(1.9,3.2,0.45,1,3.6,GOLD,'accent',{n:6}),
-            bx(1.4,6.4,1.2,1.6,1,3,DPURP,'hull')]),
-   bx(-0.5,4.6,1,0.9,12.4,2,TPUR,'glass'),
+   ...(function(){const o=[];for(let i=0;i<8;i++){const a=i/8*Math.PI*2;
+     o.push(cyl(Math.cos(a)*3.75,4.4+Math.sin(a)*3.75,0.2,9,2.4,GOLD,'accent',{n:6}));}
+     return o;})(),
+   bx(-1,1.2,2,1,3,3.4,BLACK,'dark'),
+   bx(-0.7,1.1,1.4,0.8,3.4,2.6,TPUR,'glass'),
+   cyl(0,-0.6,1.7,0.4,1.2,GOLD,'accent',{n:12}),
+   cyl(0,-0.6,1.5,1.6,3,TPUR,'glass',{n:14}),
+   ...mirX([
+     cyl(2.4,2,0.5,1,4.4,GOLD,'accent',{n:6}),
+     bx(2,7,1.4,2,1,4,DPURP,'hull'),
+     ...crate(2.2,8.2,1,1.4,DWOOD,GOLD),
+     ...lamp(3.1,1.6,1,TPUR),
+     ...strip(2.6,2.4,4,5,GOLD,DPURP,0.85),
+     bx(3.4,4,0.7,1.6,5,2,TGRN,'glass'),
+   ]),
+   px([[-3,10],[3,10],[2.2,8],[-2.2,8]],0,1,DPURP,'hull'),
  ]},
 ];
+
 
 const BODIES=[
  // narrow blue runabout with a grey spine
@@ -908,7 +1012,7 @@ function drawShip(c,x,y,s,t=0.6,yaw=0){
  c.drawImage(sp.cv,sp.ox,sp.oy,sp.w,sp.h);
  c.restore();
 }
-const BASEPLATE=[bx(-14,-2,28,28,-1,1,'#4B9C34')];
+const BASEPLATE=[bx(-15,-6,30,31,-1,1,'#4B9C34')];
 function plateSprite(yaw,ss){const q=Math.round(yaw*24)/24;
  return sprite('bp_'+q.toFixed(3)+'_'+ss,BASEPLATE,null,q,ss);}
 
@@ -1043,7 +1147,7 @@ function drawBuild(){
    ctx.beginPath();ctx.arc(s.x,s.y,s.s*0.7,0,7);ctx.fill();}
  bob+=0.04;
  if(!dragging)buildYaw+=yawSpin;
- const cx=W/2,cy=H*0.5,sc=Math.min(W,H)/360*1.05;
+ const cx=W/2,cy=H*0.5,sc=Math.min(W,H)/360*0.92;
  const empty=!shipPieces().length;
  if(empty){                                      // an empty pad, waiting
    ctx.save();ctx.textAlign='center';
@@ -1380,7 +1484,7 @@ function drawFly(){
 
  const blink=fly.invuln>0&&Math.floor(fly.invuln/5)%2===0;
  if(!(fly.over&&!fly.win)&&!blink)
-   drawShip(ctx,fly.shipX,fly.shipY,Math.min(W,H)/360*0.62,0.9,fly.tilt*1.5);
+   drawShip(ctx,fly.shipX,fly.shipY,Math.min(W,H)/360*0.52,0.9,fly.tilt*1.5);
 
  for(const p of fly.particles){
    if(p.ring){ctx.save();ctx.globalAlpha=p.life/p.max;ctx.globalCompositeOperation='lighter';
