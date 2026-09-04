@@ -1256,7 +1256,7 @@ const ENGINES=[
 // Defence mounts on the hull deck the same way wings mount on the hull edge:
 // each hull says where, each defence is drawn from that point forward.
 const DEFENSES=[
- {name:'Blaster',unlock:2,rate:15,dmg:1,col:'#FF6A3D',
+ {name:'Blaster',unlock:2,rate:11,dmg:2,col:'#FF6A3D',
   bolts:[{x:0,vx:0}],pieces:[
    bx(-0.9,0,1.8,2.8,0,2,DGREY,'dark'),
    bx(-0.7,0.4,1.4,1.6,2,2,BLACK,'dark'),
@@ -1417,6 +1417,53 @@ const ship={body:-1,wings:-1,cockpit:-1,engine:-1,tail:-1,defense:-1,pilot:-1,th
 /* Assign each option its dominant colour, then open four of everything at
    level one instead of two, filling the rest in by level twelve. A kid should
    have a real choice on the first screen, not two shapes and a lock. */
+/* What each part is for. None of it changes how the ship flies -- it is there
+   so a six-year-old choosing between two shapes has a reason to prefer one. */
+const ABOUT={
+ BODIES:{Slim:'Narrow and quick. Nothing spare on it.',
+   Wide:'A flat deck with room to bolt anything on.',
+   Pods:'Cargo pods down both sides. Built to haul.',
+   Core:'A reactor in the middle, glowing away.',
+   Keep:'Cut from castle stone. Heavy, and proud of it.'},
+ WINGS:{None:'No wings at all. Very brave.',
+   Delta:'The classic swept wing. Steady in a straight line.',
+   Swept:'Thin and fast. For going somewhere in a hurry.',
+   Guardian:'Rescue rig with side pods. Turns up when things go wrong.',
+   'Star-Four':'Four wings in an X, a cannon on every tip.',
+   Girder:'Three long girders and a lamp on each end. Built, not styled.',
+   Turbofan:'Two enormous fans. Loud. Moves a lot of air.',
+   Rotors:'Eight propellers. Nobody is sure why it works.',
+   Halo:'An alien ring that hums. Best not to touch it.',
+   Phoenix:'Feathered, and warm to the touch.',
+   Bat:'Leathery wings, for flying at night.',
+   Sails:'Actual canvas sails. Catches the solar wind.'},
+ COCKPITS:{Classic:'The one everybody starts with. Good windows.',
+   Bubble:'A round glass dome. You can see everything.',
+   Interceptor:'Low, sharp, and pointed forward.',
+   'Twin Pod':'Two seats. Bring a friend.',
+   Saucer:'Definitely borrowed from something that landed.',
+   Dragon:'It has a face. The face has opinions.',
+   Castle:'A stone turret with a flag on top.',
+   Wizard:'A pointed hat. Steers on vibes.'},
+ ENGINES:{Single:'One engine, straight down the middle.',
+   Twin:'Two engines. Twice the shove.',
+   Ion:'A quiet blue ion drive. Sneaky.',
+   Pulse:'Fires in thumps you can feel.',
+   Quad:'Four nozzles. Absurd, and it knows it.',
+   Broom:'A broomstick. It flies. Do not ask.'},
+ TAILS:{Fin:'One fin at the back. Keeps you pointing forward.',
+   'Twin Fin':'Two fins. Twice as pointed forward.',
+   Sail:'A tall sail, mostly for the look.',
+   Boom:'A long boom out the back with lights on it.',
+   Spines:'Spiky. Discourages tailgating.',
+   Banner:'Flies your colours out behind you.'},
+ DEFENSES:{Blaster:'One steady blaster. Never jams.',
+   Twin:'Two barrels, fired together.',
+   Scatter:'Sprays wide. Good when you are panicking.',
+   Pulse:'A ring that goes out and shoves rocks apart.',
+   Lance:'One long beam. Punches straight through.',
+   Catapult:'Lobs a rock back at the rocks.'},
+};
 const PART_PAL={
  COCKPITS:{Classic:'blue',Bubble:'ice',Interceptor:'red','Twin Pod':'airline',
            Saucer:'alien',Dragon:'jungle',Castle:'sand',Wizard:'candy'},
@@ -1435,7 +1482,9 @@ const UNLOCK_STEPS=[0,0,0,0,1,2,3,4,5,6,7,8];
  const slots={COCKPITS,BODIES,WINGS,ENGINES,TAILS,DEFENSES};
  for(const k in slots){
    const list=slots[k],tbl=PART_PAL[k]||{};
-   list.forEach(o=>{const n=tbl[o.name];if(n&&PAL[n])o.pal=PAL[n];tintPart(o);});
+   const ab=ABOUT[k]||{};
+   list.forEach(o=>{const n=tbl[o.name];if(n&&PAL[n])o.pal=PAL[n];tintPart(o);
+     if(ab[o.name])o.about=ab[o.name];});
    list.map((o,i)=>i).sort((a,b)=>(list[a].unlock-list[b].unlock)||(a-b))
        .forEach((k2,rank)=>{
          list[k2].unlock=UNLOCK_STEPS[Math.min(rank,UNLOCK_STEPS.length-1)];});
@@ -1468,19 +1517,36 @@ function shipSprite(yaw,ss,dof){
 // exactly the device pixels one model unit will occupy, so drawImage maps
 // 1:1 and nothing is resampled on the way to the screen
 const bakeSS=s=>Math.round(Math.max(1.5,Math.min(8,s*(DPR||1)))*100)/100;
-function thruster(c,x,y,r,t,C){if(t<=0)return;
-  const flick=0.85+Math.random()*0.3,len=(27+Math.random()*18)*t,col=C.flame2||C.glow;
+/* Exhaust leaves along the ship's own tail axis, not straight down the screen.
+   The old flame ignored yaw entirely, so as the model turned the nacelles
+   pointed one way and the fire went another -- which is why it never looked
+   like it was coming out of anything. It also re-rolled Math.random() every
+   frame for its flicker, which is the jitter. (dx,dy) is the tail direction
+   already projected, so yaw and the perspective divide are both accounted for. */
+function thruster(c,x,y,dx,dy,r,t,C,seed){
+  if(t<=0)return;
+  const now=(typeof performance!=='undefined'?performance.now():Date.now())*0.001;
+  const flick=0.88+0.12*Math.sin(now*17+seed)+0.06*Math.sin(now*29.3+seed*2.1);
+  const col=C.flame2||C.glow, hot=C.flame||'#fff';
+  const len=(2.3+1.7*t)*r*flick, w=r*0.86;
+  const px=-dy,py=dx;                        // across the plume
+  const tx=x+dx*len, ty=y+dy*len;
   c.save();c.globalCompositeOperation='lighter';
-  const R=r*3.2;c.globalAlpha=0.5;
-  c.drawImage(haloImg(col),x-R,y+len*0.35-R,R*2,R*2);c.globalAlpha=1;
-  const g=c.createLinearGradient(x,y,x,y+len);
-  g.addColorStop(0,C.flame||'#fff');g.addColorStop(.35,col);g.addColorStop(1,'rgba(255,60,0,0)');
-  c.fillStyle=g;c.beginPath();c.moveTo(x-r,y);
-  c.quadraticCurveTo(x-r*0.3,y+len*0.6,x,y+len*flick);
-  c.quadraticCurveTo(x+r*0.3,y+len*0.6,x+r,y);c.closePath();c.fill();
-  c.fillStyle='rgba(255,255,255,0.8)';c.beginPath();c.moveTo(x-r*0.45,y);
-  c.quadraticCurveTo(x,y+len*0.5,x,y+len*0.7*flick);
-  c.quadraticCurveTo(x,y+len*0.5,x+r*0.45,y);c.closePath();c.fill();
+  const R=r*1.9;c.globalAlpha=0.42;          // a bloom at the mouth, not a haze
+  c.drawImage(haloImg(col),x+dx*r*0.5-R,y+dy*r*0.5-R,R*2,R*2);c.globalAlpha=1;
+  const g=c.createLinearGradient(x,y,tx,ty);
+  g.addColorStop(0,hot);g.addColorStop(0.3,col);g.addColorStop(1,'rgba(255,60,0,0)');
+  c.fillStyle=g;c.beginPath();
+  c.moveTo(x+px*w,y+py*w);
+  c.quadraticCurveTo(x+dx*len*0.55+px*w*0.42,y+dy*len*0.55+py*w*0.42,tx,ty);
+  c.quadraticCurveTo(x+dx*len*0.55-px*w*0.42,y+dy*len*0.55-py*w*0.42,x-px*w,y-py*w);
+  c.closePath();c.fill();
+  const cw=w*0.42,cl=len*0.55;               // the white core
+  c.fillStyle='rgba(255,255,255,0.85)';c.beginPath();
+  c.moveTo(x+px*cw,y+py*cw);
+  c.quadraticCurveTo(x+dx*cl*0.5,y+dy*cl*0.5,x+dx*cl,y+dy*cl);
+  c.quadraticCurveTo(x+dx*cl*0.5,y+dy*cl*0.5,x-px*cw,y-py*cw);
+  c.closePath();c.fill();
   c.restore();}
 function drawShip(c,x,y,s,t=0.6,yaw=0,dof){
  const sp=shipSprite(yaw,bakeSS(s),dof),pal=THEMES[ship.theme];
@@ -1489,7 +1555,12 @@ function drawShip(c,x,y,s,t=0.6,yaw=0,dof){
  if(t>0&&ship.engine>=0){const cs=Math.cos(yaw),sn=Math.sin(yaw);
    for(const n of ENGINES[ship.engine].nozzles){
      const q=prj([n.x*STUD,n.y*PLATE-CY,n.z*STUD-CZ],cs,sn);
-     thruster(c,q[0],q[1],n.r,t,pal);}}
+     // one step further back tells us which way "out of the nozzle" points
+     const q2=prj([n.x*STUD,n.y*PLATE-CY,(n.z+6)*STUD-CZ],cs,sn);
+     let dx=q2[0]-q[0],dy=q2[1]-q[1];
+     const m=Math.hypot(dx,dy);
+     if(m<0.001){dx=0;dy=1;}else{dx/=m;dy/=m;}
+     thruster(c,q[0],q[1],dx,dy,n.r,t,pal,n.x*7.3+n.z*1.7);}}
  c.drawImage(sp.cv,sp.ox,sp.oy,sp.w,sp.h);
  c.restore();
 }
@@ -1568,7 +1639,7 @@ function plateSprite(yaw,ss){
    SCENES
    ======================================================================= */
 const SHOW_PAD=false;   // the green baseplate. Flip to bring it back.
-const BUILD_ID='b21';
+const BUILD_ID='b24';
 const SCENE={BUILD:0,LOADOUT:1,FLY:2};
 let scene=SCENE.BUILD;
 let uiTop=176;          // bottom of the wrapped tab block, measured after layout
@@ -1673,6 +1744,9 @@ const SLOTS=[
  {key:'pilot',label:'PILOT',list:PILOTS},
  {key:'theme',label:'COLOR',list:THEMES}];
 const NEEDED=['body','wings','cockpit','engine','tail','defense','pilot'];
+const SLOT_ICON={body:'\uD83E\uDDF1',wings:'\u2708\uFE0F',cockpit:'\uD83D\uDD35',
+  engine:'\uD83D\uDE80',tail:'\uD83D\uDD3A',defense:'\uD83D\uDEE1\uFE0F',
+  pilot:'\uD83D\uDE00',theme:'\uD83C\uDFA8'};
 // a slot he has not unlocked anything for yet stays out of the way
 const slotOpen=sl=>sl.list.some(it=>isUnlocked(it));
 const missingSlot=()=>SLOTS.find(s=>NEEDED.indexOf(s.key)>=0&&ship[s.key]<0&&slotOpen(s));
@@ -1706,15 +1780,19 @@ function buildUI(){
    SLOTS.map((s,i)=>slotOpen(s)?'<button class="slot-tab pe" data-i="'+i+'" style="'+
      'background:'+(i===activeSlot?'#F2CD37':(NEEDED.indexOf(s.key)>=0&&ship[s.key]<0?'#3A2E33':'#2C4257'))+';'+
      'color:'+(i===activeSlot?'#1B2A34':(NEEDED.indexOf(s.key)>=0&&ship[s.key]<0?'#B08894':'#9DB4C6'))+';'+
-     'border:none;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:bold;letter-spacing:0.5px;'+
-     'cursor:pointer;box-shadow:0 3px 0 '+(i===activeSlot?'#a8871c':'#1B2A34')+';transition:all .1s">'+
-     s.label+(NEEDED.indexOf(s.key)>=0&&ship[s.key]<0?' •':'')+(slotHasNew(s)?'<span style="color:#FF3B6B"> ✦</span>':'')+'</button>':'').join('')+
+     'border:none;border-radius:10px;padding:6px 9px;font-size:17px;line-height:1;'+
+     'cursor:pointer;box-shadow:0 3px 0 '+(i===activeSlot?'#a8871c':'#1B2A34')+';transition:all .1s" '+
+     'title="'+s.label+'">'+
+     (SLOT_ICON[s.key]||s.label)+
+     (NEEDED.indexOf(s.key)>=0&&ship[s.key]<0?'<span style="font-size:11px;color:#FF8FA6"> •</span>':'')+
+     (slotHasNew(s)?'<span style="font-size:11px;color:#FF3B6B">✦</span>':'')+'</button>':'').join('')+
  '</div>'+
  '<div style="position:absolute;bottom:100px;left:0;right:0;display:flex;justify-content:center;align-items:center;gap:18px">'+
    '<button class="cyc pe" data-d="-1" style="background:#F4F4F4;border:none;border-radius:50%;'+
      'width:58px;height:58px;font-size:26px;color:#1B2A34;cursor:pointer;box-shadow:0 5px 0 #9aa3a8">◀</button>'+
    '<div style="text-align:center;min-width:150px">'+
-     '<div style="color:#9DB4C6;font-size:11px;letter-spacing:2px">'+slot.label+'</div>'+
+     '<div style="color:#9DB4C6;font-size:11px;letter-spacing:2px">'+
+       (SLOT_ICON[slot.key]||'')+' '+slot.label+'</div>'+
      '<div style="color:'+(cur?'#fff':'#6B8398')+';font-size:22px;font-weight:bold;letter-spacing:1px;text-shadow:0 3px 0 #1B2A34">'+
        (cur?cur.name:'— empty —')+
        (cur&&isNew(slot.key,ship[slot.key],cur)?
@@ -1726,6 +1804,9 @@ function buildUI(){
        (cur&&slot.key==='tail'?'🎯 Turning '+cur.turn.toFixed(2)+'x  ':'')+
        (cur&&slot.key==='defense'?'🛰 Fires every '+(cur.rate/60).toFixed(1)+'s  ':'')+
        (cur?lockHint(slot):'press ▶ to fit one')+'</div>'+
+     '<div style="color:#8FA6BC;font-size:11px;margin-top:4px;line-height:1.35;'+
+       'max-width:230px;margin-left:auto;margin-right:auto">'+
+       ((cur&&cur.about)||'')+'</div>'+
    '</div>'+
    '<button class="cyc pe" data-d="1" style="background:#F4F4F4;border:none;border-radius:50%;'+
      'width:58px;height:58px;font-size:26px;color:#1B2A34;cursor:pointer;box-shadow:0 5px 0 #9aa3a8">▶</button>'+
@@ -1753,6 +1834,90 @@ function buildUI(){
  document.getElementById('next').onclick=()=>{const m=missingSlot();
    if(m){activeSlot=SLOTS.indexOf(m);scrollSound();buildUI();}else goLoadout();};
 }
+/* A magnified look at just the part being cycled through, turning on its own,
+   so you can see what you are about to fit instead of hunting for the change
+   on the finished ship. It gets its own sprite cache so it cannot evict the
+   ship's. */
+let cardYaw=0.6;
+const cardW=()=>Math.min(158,Math.max(104,W*0.33));
+const CARD=new Map(), _cardPS=new Map(), _cardBB=new Map();
+function partPieces(){
+ const sl=SLOTS[activeSlot],i=ship[sl.key];
+ if(i<0||sl.key==='theme'||sl.key==='pilot')return null;
+ const hull=ship.body>=0?BODIES[ship.body]:null;
+ const hw=hull?hull.halfW:4,wy=hull?hull.wingY:2,
+       dy=hull?hull.defY:4,dz=hull?hull.defZ:8.6,
+       ty=hull?hull.tailY:4,tz=hull?hull.tailZ:15.2;
+ const k=sl.key+i+'_'+hw+'_'+wy+'_'+dz+'_'+tz;
+ let ps=_cardPS.get(k);
+ if(!ps){
+   if(sl.key==='body')ps=BODIES[i].pieces;
+   else if(sl.key==='cockpit')ps=COCKPITS[i].pieces;
+   else if(sl.key==='engine')ps=ENGINES[i].pieces;
+   else if(sl.key==='wings')ps=WINGS[i].pieces.length?mirX(place(WINGS[i].pieces,hw,wy)):[];
+   else if(sl.key==='tail')ps=placeZ(TAILS[i].pieces,ty,tz);
+   else if(sl.key==='defense')ps=placeZ(DEFENSES[i].pieces,dy,dz);
+   else ps=[];
+   _cardPS.set(k,ps);
+ }
+ if(!ps.length)return null;
+ let bb=_cardBB.get(k);
+ if(!bb){
+   let ax=1e9,bx2=-1e9,ay=1e9,by=-1e9,mw=0,mh=0;
+   for(let j=0;j<24;j++){
+     const yw=j/24*Math.PI*2,cs=Math.cos(yw),sn=Math.sin(yw);
+     let a=1e9,b2=-1e9,c0=1e9,d0=-1e9;
+     for(const q of ps)for(const v of pieceGeom(q).V){const z=prj(v,cs,sn);
+       if(z[0]<a)a=z[0];if(z[0]>b2)b2=z[0];if(z[1]<c0)c0=z[1];if(z[1]>d0)d0=z[1];}
+     if(a<ax)ax=a;if(b2>bx2)bx2=b2;if(c0<ay)ay=c0;if(d0>by)by=d0;
+     if(b2-a>mw)mw=b2-a;if(d0-c0>mh)mh=d0-c0;
+   }
+   // the widest and tallest the part gets at any single angle -- a tighter
+   // bound than the union of all of them, so it fills the card properly
+   bb={ax,bx:bx2,ay,by,pw:Math.max(1,mw),ph:Math.max(1,mh)};
+   _cardBB.set(k,bb);
+ }
+ return{k,ps,bb};
+}
+function roundPath(c,x,y,w,h,r){
+ c.beginPath();c.moveTo(x+r,y);c.lineTo(x+w-r,y);c.quadraticCurveTo(x+w,y,x+w,y+r);
+ c.lineTo(x+w,y+h-r);c.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+ c.lineTo(x+r,y+h);c.quadraticCurveTo(x,y+h,x,y+h-r);
+ c.lineTo(x,y+r);c.quadraticCurveTo(x,y,x+r,y);c.closePath();
+}
+function drawPartCard(bandTop){
+ const info=partPieces();if(!info)return;
+ const sl=SLOTS[activeSlot],opt=sl.list[ship[sl.key]];
+ const cw=cardW(),ch=cw*0.92;
+ const x=W-cw-10,y=bandTop+6;
+ ctx.save();
+ roundPath(ctx,x,y,cw,ch,13);
+ ctx.fillStyle='rgba(10,17,42,0.60)';ctx.fill();
+ ctx.strokeStyle='rgba(150,180,220,0.20)';ctx.lineWidth=1;ctx.stroke();
+ ctx.clip();
+ const q=Math.round(cardYaw*24)/24;
+ const bw=info.bb.pw,bh=info.bb.ph;
+ const sc=Math.round(Math.min((cw-22)/bw,(ch-36)/bh)*20)/20;
+ if(sc>0.05){
+   const ss=bakeSS(sc),key=info.k+'_'+q.toFixed(3)+'_'+ss;
+   let sp=CARD.get(key);
+   if(!sp){sp=makeSprite(info.ps,THEMES[ship.theme],q,ss);CARD.set(key,sp);
+     if(CARD.size>30)CARD.clear();}
+   if(!sp.empty){
+     // the sprite carries its own bounds at THIS angle; the union over all 24
+     // angles sets a stable scale but would centre it off to one side
+     const mx=x+cw/2-(sp.ox+sp.w/2)*sc,
+           my=y+(ch-18)/2-(sp.oy+sp.h/2)*sc;
+     ctx.save();ctx.translate(mx,my);ctx.scale(sc,sc);
+     ctx.drawImage(sp.cv,sp.ox,sp.oy,sp.w,sp.h);ctx.restore();
+   }
+ }
+ ctx.restore();
+ ctx.save();ctx.textAlign='center';
+ ctx.font='bold 10px Trebuchet MS';ctx.fillStyle='#9DB4C6';
+ ctx.fillText((SLOT_ICON[sl.key]||'')+'  '+sl.label,x+cw/2,y+ch-8);
+ ctx.restore();
+}
 function drawBuild(){
  const g=ctx.createLinearGradient(0,0,0,H);
  g.addColorStop(0,'#101d47');g.addColorStop(0.55,'#0a1230');g.addColorStop(1,'#060a1c');
@@ -1772,11 +1937,16 @@ function drawBuild(){
  // the screen and swallows the caption
  const cap=empty?1.35:2.9;
  // quantised so a part swap cannot spray the sprite cache with near-identical scales
+ // the preview card takes a column on the right; the model gets the rest, so
+ // the two never sit on top of each other
+ const hasCard=!!partPieces();
+ const modelW=hasCard?Math.max(W*0.50,W-cardW()-24):W*0.94;
  const sc=Math.max(0.7,Math.min(cap,
-   Math.round(Math.min(W*0.94/fp.pw,band*0.92/fp.ph)*20)/20));
+   Math.round(Math.min(modelW/fp.pw,band*0.92/fp.ph)*20)/20));
  // the model anchor is offset so the composition's own centre lands in the
- // middle of the band; captions stay on the screen's centre line
- const cx=W/2-(fp.ax+fp.bx)*0.5*sc,
+ // middle of its column; captions stay on the screen's centre line
+ const cxc=hasCard?(W-cardW()-24)*0.5+4:W/2;
+ const cx=cxc-(fp.ax+fp.bx)*0.5*sc,
        cy=(empty?bandTop+band*0.62:bandTop+band*0.5)-(fp.ay+fp.by)*0.5*sc;
  if(empty){                                      // an empty pad, waiting
    const ty=bandTop+40;
@@ -1819,6 +1989,8 @@ function drawBuild(){
    }
  }
  drawShip(ctx,cx,cy-14+Math.sin(bob)*5,sc,0.45+0.25*Math.sin(bob*2),buildYaw,true);
+ cardYaw+=0.010;
+ drawPartCard(bandTop);
  drawVignette();
 }
 // drag anywhere on the pad to spin the model
@@ -1875,7 +2047,7 @@ const BOSS_BRICKS=[
 
 let fly={};
 // a number a six-year-old can hold in his head, and see coming
-const missionGoal=lv=>Math.min(11,4+Math.round(lv*0.5));
+const missionGoal=lv=>Math.min(13,7+Math.round(lv*0.4));
 const BOSS_HP=lv=>Math.min(8,3+Math.floor(lv/3));
 const isBossLevel=lv=>lv%3===0;
 function startMission(){
