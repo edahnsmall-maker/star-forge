@@ -165,6 +165,9 @@ function studCovered(all,p,sx,sz){const top=p.y+p.h;
 function drawPieces(c,pieces,TH,yaw,depthPass){
  const cs=Math.cos(yaw),sn=Math.sin(yaw);
  const depth=v=>TILT*v[1]+RISE*(-v[0]*sn+v[2]*cs);
+ // where the key light sits in screen space at this angle
+ const lp=prj([KEY[0]*40,KEY[1]*40,KEY[2]*40],cs,sn),lm=Math.hypot(lp[0],lp[1])||1;
+ const LDIR=[lp[0]/lm,lp[1]/lm];
  const items=[];
  for(const p of pieces){
    const g=pieceGeom(p);
@@ -262,9 +265,17 @@ function drawPieces(c,pieces,TH,yaw,depthPass){
        c.fillStyle=gr;
      }else c.fillStyle=shade(it.col,L.s+L.spec*0.5+L.fres*0.6);
      c.fill();
-     // the glossy hot spot: a small bright reflection where the light lands
+     // a cool sky reflection on upward faces, a warm bounce underneath
+     if(f.n[1]>0.25||f.n[1]<-0.2){
+       c.save();c.clip();c.globalCompositeOperation='lighter';
+       c.globalAlpha=f.n[1]>0?0.055:0.035;
+       c.fillStyle=f.n[1]>0?'#9FD8FF':'#FFB870';
+       c.fillRect(xa,ya,aw,ah);c.restore();
+     }
+     // the glossy hot spot, placed where the light actually lands
      if(L.spec>0.10&&area>60&&area<9000){
-       const hx=xa+aw*0.34,hy=ya+ah*0.26,hr=Math.min(Math.max(aw,ah)*0.5,46);
+       const hx=xa+aw*(0.5+LDIR[0]*0.30),hy=ya+ah*(0.5+LDIR[1]*0.30),
+             hr=Math.min(Math.max(aw,ah)*0.5,46);
        c.save();c.clip();c.globalCompositeOperation='lighter';
        const hg=c.createRadialGradient(hx,hy,hr*0.05,hx,hy,hr);
        hg.addColorStop(0,'rgba(255,255,255,'+Math.min(0.52,L.spec*0.6).toFixed(3)+')');
@@ -305,12 +316,12 @@ function makeSprite(pieces,TH,yaw,SS){
 // darken each pixel by how much of the hemisphere around it is blocked by
 // something nearer. This is what a photo has in every crevice and under every
 // stud, and its absence is most of what read as "computer graphics".
-const AO_DIRS=(function(){const d=[];for(let i=0;i<10;i++){const a=i/10*Math.PI*2;
+const AO_DIRS=(function(){const d=[];for(let i=0;i<8;i++){const a=i/8*Math.PI*2+0.19;
  d.push([Math.cos(a),Math.sin(a)]);}return d;})();
 function applyAO(cv,pieces,TH,yaw,SS,ax,ay,pad){
  // AO is low-frequency, so compute it at a fixed budget instead of scaling
  // with the sprite -- a 6x desktop bake costs the same as a 2x one
- const AOMAX=340,k=Math.min(0.5,AOMAX/Math.max(cv.width,cv.height));
+ const AOMAX=560,k=Math.min(0.5,AOMAX/Math.max(cv.width,cv.height));
  const dw=Math.max(2,Math.round(cv.width*k)),dh=Math.max(2,Math.round(cv.height*k));
  const dcv=document.createElement('canvas');dcv.width=dw;dcv.height=dh;
  const dg=dcv.getContext('2d',{willReadFrequently:true});
@@ -1135,8 +1146,9 @@ function shipSprite(yaw,ss){
    ship.defense,ship.pilot,ship.theme].join(',')+'_'+q.toFixed(3)+'_'+ss,
    shipPieces(),THEMES[ship.theme],q,ss);
 }
-// how many device pixels one model unit will actually occupy
-const bakeSS=s=>Math.max(2,Math.min(6,Math.ceil(s*(DPR||1)*1.15)));
+// exactly the device pixels one model unit will occupy, so drawImage maps
+// 1:1 and nothing is resampled on the way to the screen
+const bakeSS=s=>Math.round(Math.max(1.5,Math.min(8,s*(DPR||1)))*100)/100;
 function thruster(c,x,y,r,t,C){if(t<=0)return;
   const flick=0.85+Math.random()*0.3,len=(27+Math.random()*18)*t,col=C.flame2||C.glow;
   c.save();c.globalCompositeOperation='lighter';

@@ -49,8 +49,8 @@ blit.
 **Contact shadows are baked in.** Each sprite is rendered a second time as
 flat depth, and every pixel is darkened by how much of the hemisphere around
 it is blocked by something nearer -- real screen-space ambient occlusion,
-computed once per viewing angle at a fixed resolution budget so a 6x desktop
-bake costs the same as a 2x flight one. The model also throws a squashed,
+computed once per viewing angle at a fixed resolution budget so a desktop
+bake costs about what a flight one does. The model also throws a squashed,
 blurred silhouette of itself onto the baseplate. Between them they are most
 of what separates a render from a photograph of a set.
 
