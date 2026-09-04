@@ -87,9 +87,14 @@ designed look or make a Frankenstein ship in one palette.
 
 The build screen renders at up to 3x device pixels, since it is static and is
 where the detail is looked at; flight stays at 2x, since it needs the frames
-and the ship is small. A watchdog samples the frame rate and steps both caps
-down rather than dropping frames, so a slow device degrades in sharpness
-instead of in feel.
+and the ship is small. A watchdog samples the frame rate and steps the
+active scene's cap down rather than dropping frames, so a slow device
+degrades in sharpness instead of in feel -- and a heavy build screen does not
+cost flight its resolution.
+
+Verified on emulated iPhone 12, Pixel 5 and iPhone SE: a whole ship can be
+built by tapping, missions launch, touch steering works, and flight holds
+48-58 fps.
 
 ## Tools
 
