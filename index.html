@@ -318,15 +318,26 @@ const GREY='#9BA19D',DGREY='#6C6E68',BLACK='#1B2A34',WHITE='#F4F4F4',SILVER='#A5
       SAIL='#EFE3C8',BATW='#3D2A52',DPURP='#5B3A8C',BRIS='#C8A96A',
       TYEL='#F5CD2F',TBLU='#AEEFEC',TGRN='#9BE854',TORG='#FF9A3D',TPUR='#C8A0E0';
 
-const pilot=(x,z,y,shirt)=>[
- bx(x-0.65,z-0.65,1.3,1.3,y,2,shirt,'accent'),
- cyl(x,z,0.55,y+2,1.3,YEL,'accent',{n:10}),
- cyl(x,z,0.78,y+3.1,0.9,WHITE,'trim',{n:10}),
- cyl(x,z,0.8,y+2.2,1,WHITE,'trim',{n:10,ts:1.15}),
+const pilotAt=(x,z,y,P)=>[
+ bx(x-0.7,z-0.7,1.4,1.4,y,2,P.shirt,'accent'),
+ bx(x-0.7,z-0.7,1.4,1.4,y+1.4,0.7,P.belt||P.shirt,'dark'),
+ cyl(x,z,0.55,y+2,1.3,P.skin||YEL,'accent',{n:10}),
+ cyl(x,z,0.82,y+2.2,1.1,P.helmet,'trim',{n:10,ts:1.12}),
+ cyl(x,z,0.78,y+3.3,0.9,P.helmet,'trim',{n:10}),
+ bx(x-0.62,z-0.86,1.24,0.5,y+2.3,0.9,P.visor,'glass'),
+];
+const PILOTS=[
+ {name:'Rex',unlock:0,shirt:'#C91A09',helmet:'#F4F4F4',visor:'#AEEFEC',belt:'#1B2A34'},
+ {name:'Nova',unlock:0,shirt:'#078BC9',helmet:'#F4F4F4',visor:'#AEEFEC',belt:'#1B2A34'},
+ {name:'Blaze',unlock:3,shirt:'#FE8A18',helmet:'#F2CD37',visor:'#FF9A3D',belt:'#7B1C10'},
+ {name:'Sprout',unlock:6,shirt:'#237841',helmet:'#BBE90B',visor:'#9BE854',belt:'#1B2A34'},
+ {name:'Hex',unlock:10,shirt:'#8320B7',helmet:'#1B2A34',visor:'#C8A0E0',belt:'#DCBE61'},
+ {name:'Sir Kit',unlock:13,shirt:'#A3A2A4',helmet:'#A3A2A4',visor:'#1B2A34',belt:'#7A5230',skin:'#DEC69C'},
+ {name:'Merlin',unlock:16,shirt:'#5B3A8C',helmet:'#8320B7',visor:'#C8A0E0',belt:'#DCBE61'},
 ];
 const COCKPITS=[
  // Classic Space explorer: long wedge prow, greebled flanks, crew ladder
- {name:'Classic',unlock:0,pieces:[
+ {name:'Classic',unlock:0,seat:[0,5.6,6],pieces:[
    px([[-4.4,10],[4.4,10],[3,3],[-3,3]],0,1,GREY,'light'),
    px([[-3,3],[3,3],[1.4,-2],[-1.4,-2]],0,1,GREY,'light'),
    px([[-1.4,-2],[1.4,-2],[0.7,-5],[-0.7,-5]],0,1,GREY,'light'),
@@ -337,7 +348,6 @@ const COCKPITS=[
    sl(-2.2,3.2,4.4,3,6,4,'n',TYEL,'glass'),
    bx(-2.2,6.2,4.4,2,6,4,TYEL,'glass'),
    sl(-2.2,8.2,4.4,1.4,6,4,'s',TYEL,'glass'),
-   ...pilot(0,5.6,6,RED),
    ...mirX([
      ...strip(2.9,3.8,5,1,WHITE,DGREY),
      ...panel(3.1,3.6,1.5,4.4,1,BLUE,DGREY),
@@ -354,7 +364,7 @@ const COCKPITS=[
    ...strip(-0.5,0.2,3,10,GREY,DGREY,0.8),
  ]},
  // fat orange racer: dome, side intakes, exhaust pipes, spoiler
- {name:'Bubble',unlock:0,pieces:[
+ {name:'Bubble',unlock:0,seat:[0,5.4,6],pieces:[
    px([[-4.6,9.5],[4.6,9.5],[3.2,2],[-3.2,2]],0,1,WHITE,'hull'),
    px([[-3.2,2],[3.2,2],[1.6,-3],[-1.6,-3]],0,1,WHITE,'hull'),
    sl(-3.4,0.6,6.8,2.6,1,5,'n',ORG,'accent'),
@@ -363,7 +373,6 @@ const COCKPITS=[
    cyl(0,5.4,3.5,6,3.4,TBLU,'glass',{n:16}),
    cyl(0,5.4,3.5,9.4,3,TBLU,'glass',{n:16,ts:0.34}),
    cyl(0,5.4,3.7,5.2,1,WHITE,'hull',{n:16}),
-   ...pilot(0,5.4,6,ORG),
    ...mirX([
      px([[3.3,2.6],[5.6,4.4],[5.6,7.6],[3.3,8]],1,4,ORG,'accent'),
      ...pipes(4.2,3,3,1.6,4,GREY,0.75),
@@ -378,7 +387,7 @@ const COCKPITS=[
    px([[-2,9.2],[2,9.2],[1.4,10.4],[-1.4,10.4]],9,1,BLACK,'dark'),
  ]},
  // black-and-white blade with an azure spine and a sensor mast
- {name:'Interceptor',unlock:2,pieces:[
+ {name:'Interceptor',unlock:2,seat:[0,5.8,6],pieces:[
    px([[-4,10],[4,10],[1.4,-6]],0,1,BLACK,'dark'),
    px([[-2.4,5],[2.4,5],[1,-2.6]],1,1,WHITE,'hull'),
    sl(-2.6,1.4,5.2,3.4,1,5,'n',BLACK,'dark'),
@@ -386,7 +395,6 @@ const COCKPITS=[
    bx(-3,8.6,6,1.4,1,5,BLACK,'dark'),
    sl(-2.1,3.4,4.2,4.2,6,4,'n',TBLU,'glass'),
    bx(-2.1,7.6,4.2,1.4,6,3,AZ,'accent'),
-   ...pilot(0,5.8,6,AZ),
    ...mirX([
      px([[1.3,0.6],[3.9,5.2],[2.9,5.9],[1,2]],0,3,WHITE,'hull'),
      bx(2.7,5.4,1.3,4,1,5,AZ,'accent'),
@@ -402,7 +410,7 @@ const COCKPITS=[
    bx(-1.6,-2.6,3.2,1.6,1,2,WHITE,'hull'),
  ]},
  // two red pods bridged over a cargo deck
- {name:'Twin Pod',unlock:5,pieces:[
+ {name:'Twin Pod',unlock:5,seat:[2.8,5.4,6],pieces:[
    px([[-4.6,10],[4.6,10],[3.4,1.6],[-3.4,1.6]],0,1,WHITE,'trim'),
    ...mirX([
      sl(1.2,0.2,3.2,2.2,1,5,'n',RED,'hull'),
@@ -411,7 +419,6 @@ const COCKPITS=[
      bx(1.4,6.4,2.8,1.8,6,4,TBLU,'glass'),
      bx(1.2,8.2,3.2,1.2,6,1,WHITE,'trim'),
      bx(1.2,2.4,3.2,0.9,6,1,YEL,'accent'),
-     ...pilot(2.8,5.4,6,WHITE),
      tube(2.8,2.4,0.24,-4.4,5.4,GREY,'light',{n:6}),
      bx(2,-0.4,1.6,1.2,1,3,DGREY,'dark'),
      tube(4.4,1.8,0.75,2.6,4,DGREY,'dark',{n:8}),
@@ -430,13 +437,12 @@ const COCKPITS=[
    px([[-3.4,10],[3.4,10],[2.4,7.6],[-2.4,7.6]],0,1,DGREY,'dark'),
  ]},
  // a proper flying saucer: rim lights, legs, tractor emitter
- {name:'Saucer',unlock:9,pieces:[
+ {name:'Saucer',unlock:9,seat:[0,3.6,5.4],pieces:[
    cyl(0,3.6,6,0,1.6,SILVER,'light',{n:20}),
    cyl(0,3.6,5.1,1.6,2,LIME,'accent',{n:20}),
    cyl(0,3.6,4,3.6,1.6,SILVER,'light',{n:18}),
    cyl(0,3.6,3,5.2,2.4,DPURP,'hull',{n:16}),
    cyl(0,3.6,2.7,7.6,3.4,TPUR,'glass',{n:16,ts:0.42}),
-   ...pilot(0,3.6,5.4,LIME),
    ...(function(){const o=[];for(let i=0;i<10;i++){const a=i/10*Math.PI*2+0.3;
      o.push(...lamp(Math.cos(a)*5.4,3.6+Math.sin(a)*5.4,1.6,i%2?TORG:TBLU));}
      return o;})(),
@@ -453,7 +459,7 @@ const COCKPITS=[
    px([[-3,10],[3,10],[2.2,8],[-2.2,8]],0,1,SILVER,'light'),
  ]},
  // a horned head with a jaw, teeth and a gold crest
- {name:'Dragon',unlock:13,pieces:[
+ {name:'Dragon',unlock:13,seat:[0,3.4,7],pieces:[
    px([[-4.6,8],[4.6,8],[2.6,-3],[-2.6,-3]],0,1,BLACK,'dark'),
    sl(-2.6,-3,5.2,3.6,1,4,'n',DRED,'hull'),
    bx(-3.2,0.6,6.4,4.4,1,6,RED,'hull'),
@@ -477,7 +483,7 @@ const COCKPITS=[
    ...strip(-0.45,-2.6,4,5,GOLD,DRED,0.85),
  ]},
  // a castle gatehouse: two towers, a wall, a portcullis, banners
- {name:'Castle',unlock:4,pieces:[
+ {name:'Castle',unlock:4,seat:[0,3.6,8],pieces:[
    px([[-5,10],[5,10],[3.6,0.6],[-3.6,0.6]],0,1,STONE,'light'),
    bx(-2.6,1.6,5.2,4.4,1,7,STONE,'light'),
    ...(function(){const o=[];for(let i=0;i<6;i++)
@@ -508,7 +514,7 @@ const COCKPITS=[
    ...strip(-0.45,-0.2,3,1,STONE,DGREY,0.9),
  ]},
  // a wizard tower: conical roof, stars, a balcony and a crystal ball
- {name:'Wizard',unlock:16,pieces:[
+ {name:'Wizard',unlock:16,seat:[0,4.4,5],pieces:[
    px([[-4.6,10],[4.6,10],[3.2,0.4],[-3.2,0.4]],0,1,DPURP,'hull'),
    cyl(0,4.4,3.4,1,7,DPURP,'hull',{n:14}),
    cyl(0,4.4,3.6,1,1.2,GOLD,'accent',{n:14}),
@@ -817,7 +823,7 @@ const ENGINES=[
 // Defence mounts on the hull deck the same way wings mount on the hull edge:
 // each hull says where, each defence is drawn from that point forward.
 const DEFENSES=[
- {name:'Blaster',unlock:0,rate:15,dmg:1,col:'#FF6A3D',
+ {name:'Blaster',unlock:2,rate:15,dmg:1,col:'#FF6A3D',
   bolts:[{x:0,vx:0}],pieces:[
    bx(-0.9,0,1.8,2.8,0,2,DGREY,'dark'),
    bx(-0.7,0.4,1.4,1.6,2,2,BLACK,'dark'),
@@ -825,7 +831,7 @@ const DEFENSES=[
    tube(0,3,0.55,-0.6,0.9,RED,'accent',{n:8}),
    ...mirX([bx(0.9,0.6,0.5,1.4,1,2,ORG,'accent')]),
  ]},
- {name:'Twin',unlock:0,rate:22,dmg:1,col:'#FFC13D',
+ {name:'Twin',unlock:4,rate:22,dmg:1,col:'#FFC13D',
   bolts:[{x:-2,vx:0},{x:2,vx:0}],pieces:[
    bx(-2.9,0.2,5.8,2.4,0,2,DGREY,'dark'),
    ...mirX([
@@ -835,7 +841,7 @@ const DEFENSES=[
    ]),
    bx(-0.8,0.6,1.6,1.6,2,3,YEL,'accent'),
  ]},
- {name:'Scatter',unlock:2,rate:30,dmg:1,col:'#7BEE4A',
+ {name:'Scatter',unlock:6,rate:30,dmg:1,col:'#7BEE4A',
   bolts:[{x:0,vx:0},{x:-2.6,vx:-1.7},{x:2.6,vx:1.7}],pieces:[
    bx(-3.6,0.4,7.2,2.2,0,2,BLACK,'dark'),
    bx(-1,0,2,2.8,2,2,GRN,'accent'),
@@ -847,7 +853,7 @@ const DEFENSES=[
    ]),
    bx(-0.7,2.4,1.4,1.2,4,2,LIME,'accent'),
  ]},
- {name:'Pulse',unlock:6,rate:50,dmg:2,ring:true,col:'#AEEFEC',
+ {name:'Pulse',unlock:9,rate:50,dmg:2,ring:true,col:'#AEEFEC',
   pieces:[
    cyl(0,1.8,2.6,0,1.6,DGREY,'dark',{n:14}),
    cyl(0,1.8,2.1,1.6,1.4,AZ,'accent',{n:14}),
@@ -856,7 +862,7 @@ const DEFENSES=[
      o.push(cyl(Math.cos(a)*2.4,1.8+Math.sin(a)*2.4,0.42,1.6,1.4,WHITE,'trim',{n:6}));}
      return o;})(),
  ]},
- {name:'Lance',unlock:11,rate:14,dmg:2,big:true,col:'#D9A6F0',
+ {name:'Lance',unlock:15,rate:14,dmg:2,big:true,col:'#D9A6F0',
   bolts:[{x:0,vx:0}],pieces:[
    bx(-1.6,0.4,3.2,3.4,0,3,BLACK,'dark'),
    tube(0,4,0.95,-4.4,6,SILVER,'light',{n:12}),
@@ -866,7 +872,7 @@ const DEFENSES=[
    ...mirX([bx(1.4,0.8,0.7,2.4,1,3,LAV,'accent')]),
  ]},
  // a trebuchet. Slow, heavy, and it throws a rock.
- {name:'Catapult',unlock:8,rate:34,dmg:2,col:'#D9A05B',
+ {name:'Catapult',unlock:12,rate:34,dmg:2,col:'#D9A05B',
   bolts:[{x:0,vx:0}],pieces:[
    bx(-2.1,0.4,4.2,3.6,0,2,DWOOD,'dark'),
    ...mirX([
@@ -949,6 +955,16 @@ const THEMES=[
   glow:'#C86FE0',flame:'#FFFFFF',flame2:'#C86FE0'},
  {name:'Ice',unlock:9,hull:WHITE,trim:AZ,light:'#C9D6DE',dark:BLACK,glass:TBLU,accent:AZ,
   glow:'#78D9F0',flame:'#FFFFFF',flame2:'#78D9F0'},
+ {name:'Midnight',unlock:2,hull:'#1B2A34',trim:GOLD,light:'#3E4C57',dark:'#0E161C',glass:TYEL,accent:GOLD,
+  glow:GOLD,flame:'#FFF3C0',flame2:GOLD},
+ {name:'Candy',unlock:5,hull:'#E4ADC8',trim:WHITE,light:'#F7DCE8',dark:'#8E4C6B',glass:'#FFD9EC',accent:'#FF5FA2',
+  glow:'#FF5FA2',flame:'#FFFFFF',flame2:'#FF8FC4'},
+ {name:'Desert',unlock:8,hull:TAN,trim:'#7A5230',light:'#E8D8B0',dark:'#4A3A22',glass:TORG,accent:'#B5651D',
+  glow:'#E8A33D',flame:'#FFF3C0',flame2:'#E8A33D'},
+ {name:'Toxic',unlock:11,hull:'#3A4A12',trim:LIME,light:'#7E8F3A',dark:'#12180A',glass:TGRN,accent:LIME,
+  glow:LIME,flame:'#EFFFC0',flame2:LIME},
+ {name:'Coral',unlock:14,hull:'#FF6A4D',trim:'#0FB5AE',light:'#FFB3A0',dark:'#7A2418',glass:'#9FF0EC',accent:'#0FB5AE',
+  glow:'#0FB5AE',flame:'#FFFFFF',flame2:'#5BE0DA'},
 ];
 
 /* ---------- assembling the ship ---------- */
@@ -964,14 +980,15 @@ const place=(ps,dx,dy)=>ps.map(p=>{
  else{q.pts=p.pts.map(a=>[a[0]+dx,a[1]+dy]);}
  return q;});
 // -1 everywhere: an empty baseplate until he builds something
-const ship={body:-1,wings:-1,cockpit:-1,engine:-1,tail:-1,defense:-1,theme:0};
+const ship={body:-1,wings:-1,cockpit:-1,engine:-1,tail:-1,defense:-1,pilot:-1,theme:0};
 function shipPieces(){
  const hull=ship.body>=0?BODIES[ship.body]:null;
  const hw=hull?hull.halfW:4,wy=hull?hull.wingY:2,
        dy=hull?hull.defY:4,dz=hull?hull.defZ:8.6,
        ty=hull?hull.tailY:4,tz=hull?hull.tailZ:15.2;
  let out=hull?hull.pieces.slice():[];
- if(ship.cockpit>=0)out=out.concat(COCKPITS[ship.cockpit].pieces);
+ if(ship.cockpit>=0){const C=COCKPITS[ship.cockpit];out=out.concat(C.pieces);
+   if(ship.pilot>=0&&C.seat)out=out.concat(pilotAt(C.seat[0],C.seat[1],C.seat[2],PILOTS[ship.pilot]));}
  if(ship.wings>=0){const w=WINGS[ship.wings].pieces;
    if(w.length)out=out.concat(mirX(place(w,hw,wy)));}
  if(ship.engine>=0)out=out.concat(ENGINES[ship.engine].pieces);
@@ -982,7 +999,7 @@ function shipPieces(){
 function shipSprite(yaw,ss){
  const q=Math.round(yaw*24)/24;
  return sprite('s'+[ship.cockpit,ship.wings,ship.body,ship.engine,ship.tail,
-   ship.defense,ship.theme].join(',')+'_'+q.toFixed(3)+'_'+ss,
+   ship.defense,ship.pilot,ship.theme].join(',')+'_'+q.toFixed(3)+'_'+ss,
    shipPieces(),THEMES[ship.theme],q,ss);
 }
 // how many device pixels one model unit will actually occupy
@@ -1063,6 +1080,55 @@ function drawVignette(){
  ctx.fillStyle=vigGrad;ctx.fillRect(0,0,W,H);
 }
 
+// Every level is a trip somewhere. The destination hangs ahead and swells as
+// the gems come in, so progress is something you can see rather than read.
+const PLANETS=[
+ {n:'LUNA',a:'#E2E2DA',b:'#6E6E68',c:'#A8A8A0'},
+ {n:'EMBER',a:'#FFA46B',b:'#6B1408',c:'#C93A18'},
+ {n:'VERDANT',a:'#A8EE7C',b:'#14481F',c:'#3D9147'},
+ {n:'COBALT',a:'#8CC8F5',b:'#0E2E5B',c:'#2A6FBF'},
+ {n:'SAFFRON',a:'#FFE28A',b:'#7A4A08',c:'#E0A32A',ring:1},
+ {n:'ROSE',a:'#FFC8DE',b:'#7E1F4C',c:'#E064A0'},
+ {n:'ONYX',a:'#6E7886',b:'#0A0E14',c:'#2E3844'},
+ {n:'CINDER',a:'#FF8A6B',b:'#4B0F04',c:'#A82C14'},
+ {n:'AZURE',a:'#9BE8F0',b:'#0A4A5C',c:'#1F8FA8'},
+ {n:'HELIOS',a:'#FFF0B0',b:'#8A6A0A',c:'#EFC93A',ring:1},
+ {n:'THISTLE',a:'#D9BEF0',b:'#3E1466',c:'#8340C0'},
+ {n:'MOSS',a:'#C4E88A',b:'#2A4410',c:'#6A9A2A'},
+ {n:'GLACIER',a:'#EAF6FF',b:'#3A6A8E',c:'#9CC8E4'},
+ {n:'RUST',a:'#E8A070',b:'#5A2408',c:'#A85820'},
+ {n:'INDIGO',a:'#A8B0F0',b:'#141A5C',c:'#4048B0',ring:1},
+ {n:'CORAL',a:'#FFB0A0',b:'#7A2418',c:'#E0604A'},
+ {n:'JADE',a:'#9CE8C8',b:'#0E4A38',c:'#2A9A70'},
+ {n:'AMBER',a:'#FFD08A',b:'#7A4A0A',c:'#D0902A'},
+ {n:'VIOLET',a:'#D0A8F0',b:'#3A0E5C',c:'#8030C0'},
+ {n:'TERMINUS',a:'#FFE8C0',b:'#5A3A1A',c:'#C09050',ring:1},
+];
+const planetFor=lv=>PLANETS[(lv-1)%PLANETS.length];
+function drawPlanet(){
+ const P=planetFor(level),pr=Math.min(1,fly.picked/fly.goal);
+ const r=16+pr*pr*Math.min(W,H)*0.30;
+ const cx=W*0.5,cy=H*0.21;
+ ctx.save();ctx.globalAlpha=0.9;
+ if(P.ring){ctx.save();ctx.strokeStyle=hexA(P.a,0.5);ctx.lineWidth=r*0.13;
+   ctx.beginPath();ctx.ellipse(cx,cy,r*1.55,r*0.42,-0.28,0,7);ctx.stroke();
+   ctx.strokeStyle=hexA(P.c,0.4);ctx.lineWidth=r*0.05;
+   ctx.beginPath();ctx.ellipse(cx,cy,r*1.8,r*0.5,-0.28,0,7);ctx.stroke();ctx.restore();}
+ const g=ctx.createRadialGradient(cx-r*0.38,cy-r*0.38,r*0.05,cx,cy,r);
+ g.addColorStop(0,P.a);g.addColorStop(0.5,P.c);g.addColorStop(1,P.b);
+ ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,r,0,7);ctx.fill();
+ ctx.save();ctx.beginPath();ctx.arc(cx,cy,r,0,7);ctx.clip();
+ ctx.globalAlpha=0.22;ctx.fillStyle=P.b;
+ for(let i=0;i<4;i++)ctx.fillRect(cx-r,cy-r*0.7+i*r*0.4,r*2,r*0.13);
+ ctx.globalAlpha=0.3;
+ for(let i=0;i<5;i++){const a=i*2.4;
+   ctx.beginPath();ctx.arc(cx+Math.cos(a)*r*0.5,cy+Math.sin(a)*r*0.45,r*0.11,0,7);ctx.fill();}
+ ctx.restore();
+ if(P.ring){ctx.save();ctx.strokeStyle=hexA(P.a,0.75);ctx.lineWidth=r*0.13;
+   ctx.beginPath();ctx.ellipse(cx,cy,r*1.55,r*0.42,-0.28,0.15,Math.PI-0.15);ctx.stroke();ctx.restore();}
+ ctx.restore();
+}
+
 const SLOTS=[
  {key:'body',label:'HULL',list:BODIES},
  {key:'wings',label:'WINGS',list:WINGS},
@@ -1070,9 +1136,12 @@ const SLOTS=[
  {key:'engine',label:'ENGINE',list:ENGINES},
  {key:'tail',label:'TAIL',list:TAILS},
  {key:'defense',label:'DEFENSE',list:DEFENSES},
+ {key:'pilot',label:'PILOT',list:PILOTS},
  {key:'theme',label:'COLOR',list:THEMES}];
-const NEEDED=['body','wings','cockpit','engine','tail','defense'];
-const missingSlot=()=>SLOTS.find(s=>NEEDED.indexOf(s.key)>=0&&ship[s.key]<0);
+const NEEDED=['body','wings','cockpit','engine','tail','defense','pilot'];
+// a slot he has not unlocked anything for yet stays out of the way
+const slotOpen=sl=>sl.list.some(it=>isUnlocked(it));
+const missingSlot=()=>SLOTS.find(s=>NEEDED.indexOf(s.key)>=0&&ship[s.key]<0&&slotOpen(s));
 let activeSlot=0,bob=0,buildYaw=0.35,yawSpin=0.004,dragging=false,dragX=0,dragged=false;
 const isUnlocked=it=>unlockPoints>=(it.unlock||0);
 const seenParts=new Set();
@@ -1086,6 +1155,8 @@ function selectSlot(i){activeSlot=i;scrollSound();buildUI();}
 function lockHint(slot){const l=slot.list.find(it=>!isUnlocked(it));return l?'🔒 Lv '+((l.unlock||0)+1):'✓ all unlocked';}
 function buildUI(){
  if(scene!==SCENE.BUILD)return;
+ const shown=SLOTS.filter(slotOpen);
+ if(!slotOpen(SLOTS[activeSlot]))activeSlot=0;
  const slot=SLOTS[activeSlot],cur=ship[slot.key]>=0?slot.list[ship[slot.key]]:null,TC=THEMES[ship.theme];
  const hs=hiScore>0?'<span style="color:#F2CD37">★ '+hiScore+'</span>':'';
  ui.innerHTML=
@@ -1094,15 +1165,16 @@ function buildUI(){
      'text-shadow:0 3px 0 #1B2A34,0 5px 8px rgba(0,0,0,.6)">⚡ STAR FORGE</div>'+
    '<div style="text-align:right;font-size:13px;color:#fff;text-shadow:0 2px 0 #1B2A34">'+
      '<div style="color:#AEEFEC">LEVEL '+level+' / '+MAX_LEVEL+'</div>'+
+     '<div style="color:#9DB4C6;font-size:11px;letter-spacing:1px">→ '+planetFor(level).n+'</div>'+
      '<div style="color:#56E646">💎 '+totalCrystals+'</div><div>'+hs+'</div></div>'+
  '</div>'+
  '<div style="position:absolute;top:74px;left:0;right:0;display:flex;justify-content:center;gap:6px;flex-wrap:wrap;padding:0 10px">'+
-   SLOTS.map((s,i)=>'<button class="slot-tab pe" data-i="'+i+'" style="'+
+   SLOTS.map((s,i)=>slotOpen(s)?'<button class="slot-tab pe" data-i="'+i+'" style="'+
      'background:'+(i===activeSlot?'#F2CD37':(NEEDED.indexOf(s.key)>=0&&ship[s.key]<0?'#3A2E33':'#2C4257'))+';'+
      'color:'+(i===activeSlot?'#1B2A34':(NEEDED.indexOf(s.key)>=0&&ship[s.key]<0?'#B08894':'#9DB4C6'))+';'+
      'border:none;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:bold;letter-spacing:0.5px;'+
      'cursor:pointer;box-shadow:0 3px 0 '+(i===activeSlot?'#a8871c':'#1B2A34')+';transition:all .1s">'+
-     s.label+(NEEDED.indexOf(s.key)>=0&&ship[s.key]<0?' •':'')+(slotHasNew(s)?'<span style="color:#FF3B6B"> ✦</span>':'')+'</button>').join('')+
+     s.label+(NEEDED.indexOf(s.key)>=0&&ship[s.key]<0?' •':'')+(slotHasNew(s)?'<span style="color:#FF3B6B"> ✦</span>':'')+'</button>':'').join('')+
  '</div>'+
  '<div style="position:absolute;bottom:100px;left:0;right:0;display:flex;justify-content:center;align-items:center;gap:18px">'+
    '<button class="cyc pe" data-d="-1" style="background:#F4F4F4;border:none;border-radius:50%;'+
@@ -1233,7 +1305,12 @@ function startMission(){
  const turn=ship.tail>=0?TAILS[ship.tail].turn:1;
  const boost=chosenPower==='speed'?1.45:1;
  const scroll=2.9+level*0.18;
+ // the old hitbox was a fixed 16px circle on a ship ~120px wide, so rocks
+ // sailed through the wings. Measure the real sprite and use an ellipse,
+ // generous enough to forgive wingtips.
+ const flySc=Math.min(W,H)/360*0.52,sp0=shipSprite(0,2);
  fly={shipX:W/2,shipY:H*0.72,tilt:0,crystals:0,picked:0,goal,
+  hitW:Math.max(14,sp0.w*flySc*0.20),hitH:Math.max(14,sp0.h*flySc*0.24),
   shields:[],glide:6.4*turn*push*boost,
   obstacles:[],gems:[],particles:[],trail:[],boss:null,bolts:[],pulses:[],fireT:0,
   baseSpeed:scroll,speed:scroll,
@@ -1249,7 +1326,7 @@ function buildFlyUI(){
    '<div><div style="font-size:11px;color:#9DB4C6;letter-spacing:1px">GEMS</div>'+
      '<div id="cz" style="font-size:26px;font-weight:bold;color:#56E646;text-shadow:0 3px 0 #1B2A34;transition:transform .1s">0 / '+fly.goal+'</div>'+
      '<div id="score" style="font-size:12px;color:#F2CD37;margin-top:1px">💎 0</div></div>'+
-   '<div style="text-align:center"><div style="font-size:11px;color:#9DB4C6;letter-spacing:1px">LEVEL '+(isBossLevel(level)?'👹':'')+'</div>'+
+   '<div style="text-align:center"><div style="font-size:10px;color:#9DB4C6;letter-spacing:2px">→ '+planetFor(level).n+' '+(isBossLevel(level)?'👹':'')+'</div>'+
      '<div style="font-size:24px;font-weight:bold;color:#AEEFEC;text-shadow:0 3px 0 #1B2A34">'+level+'</div>'+
      '<div id="combo" style="font-size:14px;color:#F2CD37;height:16px;text-shadow:0 2px 0 #1B2A34"></div></div>'+
    '<div style="text-align:right"><div style="font-size:11px;color:#9DB4C6;letter-spacing:1px">SHIELD</div>'+
@@ -1328,7 +1405,7 @@ function updateFly(){
  for(const sp of fly.shields){
    sp.y+=fly.speed;sp.spin+=0.06;
    const dx=sp.x-fly.shipX,dy=sp.y-fly.shipY;
-   if(!sp.got&&dx*dx+dy*dy<52*52){
+   if(!sp.got&&dx*dx+dy*dy<(52+fly.hitW*0.35)*(52+fly.hitW*0.35)){
      sp.got=true;fly.shield=Math.min(fly.maxShield+3,fly.shield+1);
      powerSound();spawnRing(sp.x,sp.y,'#7FD8FF');spawnBurst(sp.x,sp.y,'#AEEFEC',14);
      const sz=document.getElementById('sz');if(sz)sz.textContent='🛡'.repeat(fly.shield);
@@ -1342,7 +1419,7 @@ function updateFly(){
    if(!g.got){
      const dx=g.x-fly.shipX,dy=g.y-fly.shipY;
      if(magnet){const d=Math.hypot(dx,dy);if(d<190){g.x-=dx/d*3.4;g.y-=dy/d*1.6;}}
-     const grabR=g.gold?52:46;
+     const grabR=(g.gold?52:46)+fly.hitW*0.35;
      if(dx*dx+dy*dy<grabR*grabR){
        g.got=true;fly.combo++;fly.comboT=90;fly.maxCombo=Math.max(fly.maxCombo,fly.combo);
        const base=g.gold?5:1;
@@ -1362,8 +1439,9 @@ function updateFly(){
  for(const o of fly.obstacles){
    o.y+=fly.speed;o.spin+=o.spinV;if(o.hitT>0)o.hitT--;
    if(o.vx){o.x+=o.vx;if(o.x<44||o.x>W-44)o.vx*=-1;}
-   if(fly.invuln<=0){const dx=o.x-fly.shipX,dy=o.y-fly.shipY;const rr2=(o.w*0.32+16);
-     if(dx*dx+dy*dy<rr2*rr2)hitShip();}
+   if(fly.invuln<=0){const pad=o.w*0.30;
+     const dx=(o.x-fly.shipX)/(fly.hitW+pad),dy=(o.y-fly.shipY)/(fly.hitH+pad);
+     if(dx*dx+dy*dy<1)hitShip();}
  }
  fly.obstacles=fly.obstacles.filter(o=>o.y<H+60);
 
@@ -1426,8 +1504,9 @@ function updateFly(){
    const b=fly.boss;b.sway+=0.03;
    if(b.y<H*0.22)b.y+=b.vy*fly.speed*0.4;else{b.x+=b.vx*2.2;if(b.x<b.r+20||b.x>W-b.r-20)b.vx*=-1;}
    if(b.hitT>0)b.hitT--;
-   if(fly.invuln<=0){const dx=b.x-fly.shipX,dy=b.y-fly.shipY;const rr2=b.r*0.7+14;
-     if(dx*dx+dy*dy<rr2*rr2)hitShip();}
+   if(fly.invuln<=0){const pad=b.r*0.66;
+     const dx=(b.x-fly.shipX)/(fly.hitW+pad),dy=(b.y-fly.shipY)/(fly.hitH+pad);
+     if(dx*dx+dy*dy<1)hitShip();}
    b.fireT++;
  }
  updateParticles();
@@ -1466,6 +1545,7 @@ function drawFly(){
  const bgf=ctx.createLinearGradient(0,0,0,H);
  bgf.addColorStop(0,'#0b1435');bgf.addColorStop(0.6,'#080f26');bgf.addColorStop(1,'#04060f');
  ctx.fillStyle=bgf;ctx.fillRect(-20,-20,W+40,H+40);
+ drawPlanet();
  drawNebula(fly.speed*0.4);
  for(const s of stars){s.y+=fly.speed*(0.3+s.z*0.9);if(s.y>H){s.y=0;s.x=Math.random()*W;}}
  for(let bk=0;bk<3;bk++){
@@ -1518,8 +1598,8 @@ function drawFly(){
    if(fly.overT>20){ctx.textAlign='center';
      if(fly.win){const done=level>=MAX_LEVEL;
        ctx.fillStyle='#1B2A34';ctx.font='bold '+Math.floor(W*0.085)+'px Trebuchet MS';
-       ctx.fillText(done?'YOU WON! 🏆':'MISSION DONE!',W/2,H*0.32+4);
-       ctx.fillStyle='#57A93B';ctx.fillText(done?'YOU WON! 🏆':'MISSION DONE!',W/2,H*0.32);
+       ctx.fillText(done?'YOU WON! 🏆':'ARRIVED AT '+planetFor(level).n,W/2,H*0.32+4);
+       ctx.fillStyle='#57A93B';ctx.fillText(done?'YOU WON! 🏆':'ARRIVED AT '+planetFor(level).n,W/2,H*0.32);
        ctx.fillStyle='#fff';ctx.font=Math.floor(W*0.036)+'px Trebuchet MS';
        ctx.fillText(fly.crystals+' crystals'+(fly.maxCombo>=3?'  ·  combo x'+fly.maxCombo:''),W/2,H*0.41);
        if(done){ctx.fillStyle='#F2CD37';ctx.font=Math.floor(W*0.03)+'px Trebuchet MS';

@@ -2,8 +2,8 @@
 
 A LEGO-style spaceship builder and side-on flying game, built for a
 six-year-old. You start with an empty baseplate and build a ship one part at a time --
-hull, wings, cockpit, engine, tail, defence -- then fly a mission and unlock
-more parts.
+hull, wings, cockpit, engine, tail, defence, and a minifigure to fly it --
+then set off for a planet and unlock more parts.
 
 **Play it:** https://edahnsmall-maker.github.io/star-forge/
 
@@ -24,8 +24,10 @@ give round plates and cylinders.
 
 **Parts change how it flies.** Engine power and the tail both set how fast
 the ship itself moves; the world scrolls at a rate set by the level alone.
-Defence decides what you can shoot. Twenty levels, with something new to
-unlock at almost every one up to sixteen and the last four pure difficulty.
+Defence decides what you can shoot. Twenty levels, each a trip to a named planet that swells in the background as
+the gems come in. Something new unlocks at almost every level up to sixteen;
+the last four are pure difficulty. Defence does not exist for the first two
+levels -- it arrives as a reveal once he has flown a bit.
 Mission length and balance were set from measured play, not by feel.
 
 **Parts mount, they don't just sit near each other.** Every hull narrows to
