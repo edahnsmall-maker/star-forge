@@ -1373,7 +1373,7 @@ const DEFENSES=[
    tube(0,3,0.55,-0.6,0.9,RED,'accent',{n:8}),
    ...mirX([bx(0.9,0.6,0.5,1.4,1,2,ORG,'accent')]),
  ]},
- {name:'Twin',unlock:4,rate:22,dmg:1,col:'#FFC13D',
+ {name:'Twin',unlock:4,rate:18,dmg:2,col:'#FFC13D',
   bolts:[{x:-2,vx:0},{x:2,vx:0}],pieces:[
    bx(-2.9,0.2,5.8,2.4,0,2,DGREY,'dark'),
    ...mirX([
@@ -1383,7 +1383,7 @@ const DEFENSES=[
    ]),
    bx(-0.8,0.6,1.6,1.6,2,3,YEL,'accent'),
  ]},
- {name:'Scatter',unlock:6,rate:30,dmg:1,col:'#7BEE4A',
+ {name:'Scatter',unlock:6,rate:24,dmg:2,col:'#7BEE4A',
   bolts:[{x:0,vx:0},{x:-2.6,vx:-1.7},{x:2.6,vx:1.7}],pieces:[
    bx(-3.6,0.4,7.2,2.2,0,2,BLACK,'dark'),
    bx(-1,0,2,2.8,2,2,GRN,'accent'),
@@ -1395,7 +1395,7 @@ const DEFENSES=[
    ]),
    bx(-0.7,2.4,1.4,1.2,4,2,LIME,'accent'),
  ]},
- {name:'Pulse',unlock:9,rate:50,dmg:2,ring:true,col:'#AEEFEC',
+ {name:'Pulse',unlock:9,rate:64,dmg:2,ring:true,col:'#AEEFEC',
   pieces:[
    cyl(0,1.8,2.6,0,1.6,DGREY,'dark',{n:14}),
    cyl(0,1.8,2.1,1.6,1.4,AZ,'accent',{n:14}),
@@ -1404,7 +1404,7 @@ const DEFENSES=[
      o.push(cyl(Math.cos(a)*2.4,1.8+Math.sin(a)*2.4,0.42,1.6,1.4,WHITE,'trim',{n:6}));}
      return o;})(),
  ]},
- {name:'Scythe',unlock:11,rate:48,dmg:2,arc:true,arcR:80,col:'#AEEFEC',
+ {name:'Scythe',unlock:11,rate:58,boltEvery:19,dmg:2,arc:true,arcR:60,col:'#AEEFEC',
   bolts:[{x:0,vx:0}],
   pieces:[
    bx(-1.4,0.6,2.8,3,0,3,DGREY,'dark'),
@@ -1420,7 +1420,7 @@ const DEFENSES=[
      return o;})(),
    ...mirX([cyl(1.5,1.2,0.36,3,1.2,AZ,'accent',{n:6})]),
  ]},
- {name:'Lance',unlock:15,rate:14,dmg:2,big:true,col:'#D9A6F0',
+ {name:'Lance',unlock:15,rate:12,dmg:3,big:true,col:'#D9A6F0',
   bolts:[{x:0,vx:0}],pieces:[
    bx(-1.6,0.4,3.2,3.4,0,3,BLACK,'dark'),
    tube(0,4,0.95,-4.4,6,SILVER,'light',{n:12}),
@@ -1430,8 +1430,8 @@ const DEFENSES=[
    ...mirX([bx(1.4,0.8,0.7,2.4,1,3,LAV,'accent')]),
  ]},
  // a trebuchet. Slow, heavy, and it throws a rock.
- {name:'Catapult',unlock:12,rate:34,dmg:2,col:'#D9A05B',
-  bolts:[{x:0,vx:0}],pieces:[
+ {name:'Catapult',unlock:12,rate:30,dmg:3,col:'#D9A05B',
+  bolts:[{x:0,vx:0},{x:-2.4,vx:-1.5},{x:2.4,vx:1.5}],pieces:[
    bx(-2.1,0.4,4.2,3.6,0,2,DWOOD,'dark'),
    ...mirX([
      bx(1.2,0.6,0.7,0.9,2,5,WOOD,'dark'),
@@ -1776,7 +1776,7 @@ function plateSprite(yaw,ss){
    SCENES
    ======================================================================= */
 const SHOW_PAD=false;   // the green baseplate. Flip to bring it back.
-const BUILD_ID='b35';
+const BUILD_ID='b36';
 const SCENE={BUILD:0,LOADOUT:1,FLY:2};
 let scene=SCENE.BUILD;
 let uiTop=176;          // bottom of the wrapped tab block, measured after layout
@@ -2233,8 +2233,28 @@ const BOSS_BRICKS=[
 
 let fly={};
 // a number a six-year-old can hold in his head, and see coming
-const missionGoal=lv=>Math.min(13,7+Math.round(lv*0.4));
-const BOSS_HP=lv=>Math.min(8,3+Math.floor(lv/3));
+// The goal has to climb with the field, or a faster level is simply a shorter
+// one -- more danger per second but fewer seconds to be in danger.
+const missionGoal=lv=>Math.min(24,7+Math.round(lv*0.85));
+/* The whole difficulty curve, in one place so it can be tuned against measured
+   win rates instead of guessed at. Levels 1-5 are for a six-year-old finding
+   his feet; from there it climbs steeply, and by 20 it should beat him often.
+   Everything here was flat or nearly flat before -- the spawn interval hit its
+   floor at level 18 and the world speed barely moved, so level 20 played much
+   like level 8. */
+const DIFF=lv=>({
+ scroll:    2.9+lv*0.28,                       // how fast the field comes at you
+ every:     Math.max(6,33-lv*1.5),             // frames between spawns
+ drift:     lv>=5?0.5+lv*0.10:0,               // sideways wander on rocks
+ swarmFrom: 9,
+ splitFrom: 10,
+ droneP:    lv>=3?Math.min(0.28,0.03+lv*0.016):0,
+ spitP:     lv>=6?Math.min(0.44,0.10+lv*0.017):0,
+ spitEvery: Math.max(24,76-lv*3.0),            // how often a spitter fires
+ shields:   lv>=14?2:3,                        // it stops being forgiving
+ bossHp:    Math.min(11,3+Math.floor(lv/2.2)),
+});
+
 const isBossLevel=lv=>lv%3===0;
 function startMission(){
  audio();scene=SCENE.FLY;
@@ -2244,7 +2264,7 @@ function startMission(){
  const push=0.84+(ship.engine>=0?ENGINES[ship.engine].thrust:1)*0.15;
  const turn=ship.tail>=0?TAILS[ship.tail].turn:1;
  const boost=chosenPower==='speed'?1.45:1;
- const scroll=2.9+level*0.18;
+ const scroll=DIFF(level).scroll;
  // the old hitbox was a fixed 16px circle on a ship ~120px wide, so rocks
  // sailed through the wings. Measure the real sprite and use an ellipse,
  // generous enough to forgive wingtips.
@@ -2255,12 +2275,14 @@ function startMission(){
   obstacles:[],gems:[],particles:[],trail:[],boss:null,bolts:[],pulses:[],fireT:0,
   baseSpeed:scroll,speed:scroll,
   dist:0,spawnT:0,over:false,win:false,overT:0,
-  shield:chosenPower==='shield'?5:3,maxShield:chosenPower==='shield'?5:3,
+  shield:DIFF(level).shields+(chosenPower==='shield'?2:0),
+  maxShield:DIFF(level).shields+(chosenPower==='shield'?2:0),
   invuln:0,combo:0,comboT:0,maxCombo:0,shake:0,
   scorePerGem:chosenPower==='speed'?2:1,bossSpawned:false,
   gad:chosenGadget,gCharge:(GADGETS.find(g=>g.id===chosenGadget)||{start:2}).start,
   gMax:3,gSinceGem:0,gFlash:0,
-  magnet:0,freeze:0,scythe:0,scytheId:0,scytheR:98,scytheDmg:2,od:0,eBolts:[]};
+  magnet:0,freeze:0,scythe:0,scytheId:0,scytheR:98,scytheDmg:2,od:0,eBolts:[],
+  spitEvery:DIFF(level).spitEvery};
  buildFlyUI();beep(660,0.1,'square',0.14,200);
 }
 let touchSteer=0;
@@ -2343,14 +2365,15 @@ function updateFly(){
 
  if(isBossLevel(level)&&!fly.bossSpawned&&fly.picked>=Math.floor(fly.goal*0.3)){
    fly.bossSpawned=true;
-   fly.boss={x:W/2,y:-120,r:70,hp:BOSS_HP(level),maxHp:BOSS_HP(level),vx:1.6,vy:0.5,hitT:0,fireT:0,sway:0};
+   fly.boss={x:W/2,y:-120,r:70,hp:DIFF(level).bossHp,maxHp:DIFF(level).bossHp,vx:1.6,vy:0.5,hitT:0,fireT:0,sway:0};
    beep(120,0.4,'sawtooth',0.2,40);
  }
 
  fly.spawnT++;
  // While the boss is up it IS the level: thin the field so rocks can't pile on top of the fight.
  const bossOn=!!fly.boss;
- const every=Math.max(9,34-level*1.35);
+ const DF=DIFF(level);
+ const every=DF.every;
  if(fly.spawnT%Math.floor(every)===0){
    const r=Math.random(),gemShare=1-Math.min(0.09,level*0.0045);  // rockier as it climbs
    if(r<0.035){fly.shields.push({x:70+Math.random()*(W-140),y:-30,spin:0});}
@@ -2359,22 +2382,22 @@ function updateFly(){
    else if(r<0.275*gemShare){const bx=90+Math.random()*(W-180);for(let k=-1;k<=1;k++)fly.gems.push(mkGem(bx+k*46,-30-Math.abs(k)*24));}
    else if(!bossOn||Math.random()<0.35){
      const roll=Math.random();
-     if(level>=4&&roll<Math.min(0.20,0.05+level*0.011)){
+     if(roll<DF.droneP){
        // a drone: slower, hunts your column, has to be shot
        fly.obstacles.push({x:60+Math.random()*(W-120),y:-40,w:46,h:34,hp:2,hitT:0,
          hunt:true,spin:0,spinV:0,rock:0,sc:46/74,drone:true});
-     }else if(level>=7&&roll<Math.min(0.34,0.14+level*0.011)){
+     }else if(roll<DF.droneP+DF.spitP){
        // a spitter: sits in the field and shoots at you
        const w=60;
        fly.obstacles.push({x:60+Math.random()*(W-120),y:-40,w,h:w*0.7,hp:3,hitT:0,
          spit:true,spitT:0,vx:0,spin:Math.random()*7,spinV:(Math.random()-.5)*0.02,
          rock:(Math.random()*ROCKS.length)|0,sc:w/74});
      }else{const w=38+Math.random()*46;fly.obstacles.push({x:60+Math.random()*(W-120),y:-40,w,h:w*0.7,
-       hp:w<52?1:(w<70?2:3),hitT:0,vx:level>=6?(Math.random()-0.5)*(1+level*0.07):0,
+       hp:w<52?1:(w<70?2:3),hitT:0,vx:DF.drift?(Math.random()-0.5)*DF.drift*2:0,
        spin:Math.random()*7,spinV:(Math.random()-.5)*0.04,rock:(Math.random()*ROCKS.length)|0,sc:w/74});}
    }
  }
- if(!bossOn&&level>=12&&fly.spawnT%Math.floor(every*7)===0){
+ if(!bossOn&&level>=DF.swarmFrom&&fly.spawnT%Math.floor(every*7)===0){
    for(let k=0;k<6;k++){const w=32+Math.random()*14;
      fly.obstacles.push({x:60+Math.random()*(W-120),y:-40-k*34,w,h:w*0.7,hp:1,hitT:0,
        vx:(Math.random()-0.5)*2.2,spin:Math.random()*7,spinV:(Math.random()-.5)*0.09,
@@ -2447,7 +2470,7 @@ function updateFly(){
    }else if(o.vx&&!fly.freeze){o.x+=o.vx;if(o.x<44||o.x>W-44)o.vx*=-1;}
    if(o.spit&&!fly.freeze){
      o.spitT=(o.spitT||0)+1;
-     if(o.spitT>72&&o.y>0&&o.y<H*0.6){o.spitT=0;
+     if(o.spitT>(fly.spitEvery||72)&&o.y>0&&o.y<H*0.6){o.spitT=0;
        const dx=fly.shipX-o.x,dy=fly.shipY-o.y,m=Math.hypot(dx,dy)||1;
        fly.eBolts.push({x:o.x,y:o.y,vx:dx/m*3.4,vy:dy/m*3.4});
        beep(180,0.09,'sawtooth',0.08,-60);}
@@ -2469,23 +2492,24 @@ function updateFly(){
  const D=ship.defense>=0?DEFENSES[ship.defense]:{rate:0};
  if(D.rate){
    fly.fireT++;
-   const rate=fly.od>0?Math.max(3,Math.round(D.rate/3)):D.rate;   // OVERDRIVE
-   if(fly.fireT%rate===0){
-     if(D.arc){
+   const od=fly.od>0, sp=v=>od?Math.max(3,Math.round(v/3)):v;   // OVERDRIVE
+   const shoot=big=>{for(const b of D.bolts)
+     fly.bolts.push({x:fly.shipX+b.x*3.2,y:fly.shipY-18,vx:b.vx,vy:-13,
+       dmg:D.dmg,col:D.col,big});};
+   if(D.arc){
+     // The sweep is slow on purpose, but its reach is 60px and the boss never
+     // comes closer than about 450 -- tying the forward shard to the same beat
+     // made this a near-dead pick on boss levels. They run on separate timers.
+     if(fly.fireT%sp(D.rate)===0){
        fly.scythe=22;fly.scytheId=(fly.scytheId||0)+1;
        fly.scytheR=D.arcR;fly.scytheDmg=D.dmg;
-       // The sweep only reaches 98px and the boss never comes closer than about
-       // 450, so on its own this would be an unwinnable pick on every third
-       // level. It throws a shard forward on the same beat.
-       for(const b of D.bolts)
-         fly.bolts.push({x:fly.shipX+b.x*3.2,y:fly.shipY-18,vx:b.vx,vy:-13,
-           dmg:D.dmg,col:D.col});
+       beep(420,0.04,'triangle',0.07,-260);
      }
-     else if(D.ring)fly.pulses.push({x:fly.shipX,y:fly.shipY-10,r:16,max:265,dmg:D.dmg,col:D.col});
-     else for(const b of D.bolts)
-       fly.bolts.push({x:fly.shipX+b.x*3.2,y:fly.shipY-18,vx:b.vx,vy:-13,
-         dmg:D.dmg,col:D.col,big:D.big});
-     beep(D.arc?420:(D.big?300:520),0.04,D.arc?'triangle':'square',0.07,D.arc?-260:(D.big?-120:180));
+     if(fly.fireT%sp(D.boltEvery||20)===0){shoot(false);beep(520,0.03,'square',0.05,180);}
+   }else if(fly.fireT%sp(D.rate)===0){
+     if(D.ring)fly.pulses.push({x:fly.shipX,y:fly.shipY-10,r:16,max:210,dmg:D.dmg,col:D.col});
+     else shoot(D.big);
+     beep(D.big?300:520,0.04,'square',0.07,D.big?-120:180);
    }
  }
  for(const b of fly.bolts){b.x+=b.vx;b.y+=b.vy;}
@@ -2498,7 +2522,7 @@ function updateFly(){
      beep(150,0.16,'square',0.14,-70);fly.shake=Math.max(fly.shake,5);
      if(Math.random()<0.22)fly.gems.push(mkGem(o.x,o.y));
      else if(Math.random()<0.14)fly.shields.push({x:o.x,y:o.y,spin:0});
-     if(level>=14&&o.w>62)                                  // big ones split in two
+     if(level>=DIFF(level).splitFrom&&o.w>62)                                  // big ones split in two
        for(const sx of[-1,1]){const w2=o.w*0.5;
          fly.obstacles.push({x:o.x+sx*o.w*0.3,y:o.y,w:w2,h:w2*0.7,hp:1,hitT:0,
            vx:sx*1.3,spin:Math.random()*7,spinV:(Math.random()-.5)*0.07,
