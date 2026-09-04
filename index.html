@@ -1789,7 +1789,7 @@ function plateSprite(yaw,ss){
    SCENES
    ======================================================================= */
 const SHOW_PAD=false;   // the green baseplate. Flip to bring it back.
-const BUILD_ID='b29';
+const BUILD_ID='b32';
 const SCENE={BUILD:0,LOADOUT:1,FLY:2};
 let scene=SCENE.BUILD;
 let uiTop=176;          // bottom of the wrapped tab block, measured after layout
@@ -1933,7 +1933,12 @@ function cycleSlot(i,dir){const s=SLOTS[i],n=s.list.length;let idx=ship[s.key];
   for(let k=0;k<n;k++){idx=(idx+dir+n)%n;if(isUnlocked(s.list[idx]))break;}
   ship[s.key]=idx;seenParts.add(s.key+idx);SPR.clear();clackSound();buildUI();}
 function selectSlot(i){activeSlot=i;scrollSound();buildUI();}
-function lockHint(slot){const l=slot.list.find(it=>!isUnlocked(it));return l?'🔒 Lv '+((l.unlock||0)+1):'✓ all unlocked';}
+function lockHint(slot){
+ const l=slot.list.filter(it=>!isUnlocked(it));
+ if(!l.length)return '✓ all '+slot.list.length+' unlocked';
+ const nx=Math.min.apply(null,l.map(it=>it.unlock||0));
+ return '🔒 '+l.length+' more at Lv '+(nx+1);
+}
 function buildUI(){
  if(scene!==SCENE.BUILD)return;
  const shown=SLOTS.filter(slotOpen);
@@ -2168,22 +2173,49 @@ addEventListener('pointermove',e=>{if(!dragging)return;
  const dx=e.clientX-dragX;dragX=e.clientX;if(Math.abs(dx)>0.5)dragged=true;buildYaw+=dx*0.012;});
 addEventListener('pointerup',()=>{if(dragging){dragging=false;yawSpin=dragged?0.010:0;}});
 
+/* A gadget is a one-shot you set off yourself. Rocks come at you and the only
+   answer was to steer -- this gives a button that changes the board. Charges
+   come back as gems come in, so using one is a decision rather than a habit. */
+const GADGETS=[
+ {id:'nova',name:'NOVA',icon:'💥',col:'#FF6A3D',start:2,
+  desc:'Blows up every rock on the screen'},
+ {id:'vacuum',name:'VACUUM',icon:'🌪',col:'#57A93B',start:2,
+  desc:'Yanks every gem on screen straight to you'},
+ {id:'overdrive',name:'OVERDRIVE',icon:'⚡',col:'#F2CD37',start:2,
+  desc:'Your defence fires three times as fast'},
+ {id:'scythe',name:'SCYTHE',icon:'🌀',col:'#AEEFEC',start:3,
+  desc:'A short sweep that clears anything close'},
+ {id:'freeze',name:'FREEZE',icon:'❄️',col:'#78D9F0',start:2,
+  desc:'Rocks stop dead for a few seconds'},
+];
+let chosenGadget='nova';
 const POWERS=[
  {id:'shield',name:'EXTRA SHIELD',icon:'🛡',desc:'Start with 5 shields instead of 3',color:'#0055BF'},
  {id:'speed',name:'HYPER SPEED',icon:'⚡',desc:'Your ship darts about faster & double points',color:'#57A93B'},
  {id:'magnet',name:'GEM MAGNET',icon:'🧲',desc:'Crystals get pulled toward your ship',color:'#C91A09'}];
 function goLoadout(){audio();scene=SCENE.LOADOUT;loadoutUI();clackSound();}
 function loadoutUI(){
- ui.innerHTML='<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px">'+
-   '<div style="color:#fff;font-size:clamp(22px,5vw,34px);font-weight:bold;letter-spacing:2px;text-shadow:0 4px 0 #1B2A34">PICK YOUR POWER-UP</div>'+
+ ui.innerHTML='<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;'+
+   'justify-content:center;gap:clamp(10px,2.2vh,20px);overflow-y:auto;padding:14px 0">'+
+   '<div style="color:#fff;font-size:clamp(17px,4.4vw,32px);font-weight:bold;letter-spacing:2px;text-shadow:0 4px 0 #1B2A34">PICK YOUR POWER-UP</div>'+
    '<div style="display:flex;gap:14px;flex-wrap:wrap;justify-content:center;padding:0 12px">'+
      POWERS.map(p=>'<button class="pw pe" data-id="'+p.id+'" style="background:'+p.color+';border:none;'+
-       'border-radius:16px;width:152px;padding:18px 12px;cursor:pointer;box-shadow:0 6px 0 '+shade(p.color,-0.35)+',0 10px 16px rgba(0,0,0,.45);transition:transform .08s">'+
-       '<div style="font-size:44px">'+p.icon+'</div>'+
+       'border-radius:16px;width:clamp(108px,29vw,152px);padding:clamp(10px,2vh,18px) 10px;cursor:pointer;box-shadow:0 6px 0 '+shade(p.color,-0.35)+',0 10px 16px rgba(0,0,0,.45);transition:transform .08s">'+
+       '<div style="font-size:clamp(30px,7vw,44px)">'+p.icon+'</div>'+
        '<div style="color:#fff;font-size:15px;font-weight:bold;margin-top:8px;text-shadow:0 2px 0 rgba(0,0,0,.35)">'+p.name+'</div>'+
        '<div style="color:rgba(255,255,255,.85);font-size:11px;margin-top:6px;line-height:1.4">'+p.desc+'</div></button>').join('')+
    '</div>'+
+   '<div style="color:#9DB4C6;font-size:12px;letter-spacing:2px;margin-top:4px">AND A GADGET TO SET OFF</div>'+
+   '<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;padding:0 12px">'+
+     GADGETS.map(g=>'<button class="gd pe" data-id="'+g.id+'" style="background:'+
+       (g.id===chosenGadget?g.col:'#2C4257')+';border:none;border-radius:14px;width:clamp(92px,24vw,118px);'+
+       'padding:clamp(7px,1.4vh,11px) 7px;cursor:pointer;box-shadow:0 5px 0 '+shade(g.id===chosenGadget?g.col:'#2C4257',-0.35)+'">'+
+       '<div style="font-size:clamp(20px,5vw,26px)">'+g.icon+'</div>'+
+       '<div style="color:#fff;font-size:12px;font-weight:bold;margin-top:4px">'+g.name+'</div>'+
+       '<div style="color:rgba(255,255,255,.8);font-size:10px;margin-top:4px;line-height:1.3">'+g.desc+'</div></button>').join('')+
+   '</div>'+
    '<button id="back" class="brick-btn" style="margin-top:6px;font-size:14px;padding:11px 22px">◀ Back to ship</button></div>';
+ ui.querySelectorAll('.gd').forEach(b=>b.onclick=()=>{chosenGadget=b.dataset.id;clackSound();loadoutUI();});
  ui.querySelectorAll('.pw').forEach(b=>b.onclick=()=>{chosenPower=b.dataset.id;powerSound();startMission();});
  document.getElementById('back').onclick=()=>{scene=SCENE.BUILD;buildUI();};
 }
@@ -2240,7 +2272,10 @@ function startMission(){
   dist:0,spawnT:0,over:false,win:false,overT:0,
   shield:chosenPower==='shield'?5:3,maxShield:chosenPower==='shield'?5:3,
   invuln:0,combo:0,comboT:0,maxCombo:0,shake:0,
-  scorePerGem:chosenPower==='speed'?2:1,bossSpawned:false};
+  scorePerGem:chosenPower==='speed'?2:1,bossSpawned:false,
+  gad:chosenGadget,gCharge:(GADGETS.find(g=>g.id===chosenGadget)||{start:2}).start,
+  gMax:3,gSinceGem:0,gFlash:0,
+  magnet:0,freeze:0,scythe:0,od:0,eBolts:[]};
  buildFlyUI();beep(660,0.1,'square',0.14,200);
 }
 let touchSteer=0;
@@ -2258,14 +2293,51 @@ function buildFlyUI(){
        (ship.defense>=0?'🛰 '+DEFENSES[ship.defense].name.toUpperCase():'')+'</div></div></div>'+
  '<div class="pe" id="zL" style="position:absolute;left:0;top:60px;bottom:0;width:50%"></div>'+
  '<div class="pe" id="zR" style="position:absolute;right:0;top:60px;bottom:0;width:50%"></div>'+
- '<div style="position:absolute;bottom:14px;left:0;right:0;text-align:center;color:#4A6076;font-size:12px;letter-spacing:2px;pointer-events:none">◀ HOLD TO STEER ▶</div>';
+ '<div style="position:absolute;bottom:14px;left:0;right:0;text-align:center;color:#4A6076;font-size:12px;letter-spacing:2px;pointer-events:none">◀ HOLD TO STEER ▶</div>'+
+ (function(){const G=GADGETS.find(g=>g.id===fly.gad)||GADGETS[0],on=fly.gCharge>0;
+  return '<button id="gad" class="pe" style="position:absolute;bottom:52px;left:50%;transform:translateX(-50%);'+
+   'width:82px;height:82px;border-radius:50%;border:none;cursor:pointer;'+
+   'background:'+(on?G.col:'#3A4653')+';opacity:'+(on?1:0.5)+';'+
+   'box-shadow:0 6px 0 '+shade(on?G.col:'#3A4653',-0.35)+',0 10px 18px rgba(0,0,0,.5)">'+
+   '<div style="font-size:30px;line-height:1">'+G.icon+'</div>'+
+   '<div style="color:#fff;font-size:12px;font-weight:bold;letter-spacing:1px;text-shadow:0 2px 0 rgba(0,0,0,.4)">'+
+     (on?'●'.repeat(fly.gCharge):'—')+'</div></button>';})();
  const zL=document.getElementById('zL'),zR=document.getElementById('zR');
  const set=v=>e=>{e.preventDefault();touchSteer=v;};const clr=e=>{if(e)e.preventDefault();touchSteer=0;};
  zL.ontouchstart=set(-1);zL.onmousedown=set(-1);zR.ontouchstart=set(1);zR.onmousedown=set(1);
  zL.ontouchend=clr;zR.ontouchend=clr;zL.onmouseup=clr;zR.onmouseup=clr;zL.onmouseleave=clr;zR.onmouseleave=clr;
+ const gb=document.getElementById('gad');
+ if(gb){const go=e=>{e.preventDefault();e.stopPropagation();fireGadget();};
+   gb.ontouchstart=go;gb.onmousedown=go;}
+}
+function fireGadget(){
+ if(scene!==SCENE.FLY||fly.over||fly.gCharge<=0)return;
+ fly.gCharge--;fly.gFlash=14;
+ const g=fly.gad;
+ if(g==='nova'){
+   let n=0;
+   for(const o of fly.obstacles){
+     if(o.y<-20)continue;
+     o.dead=true;n++;spawnBurst(o.x,o.y,'#FFB870',18);
+     if(Math.random()<0.35)fly.gems.push(mkGem(o.x,o.y));
+   }
+   fly.obstacles=fly.obstacles.filter(o=>!o.dead);
+   fly.pulses.push({x:fly.shipX,y:fly.shipY-10,r:20,max:Math.max(W,H),dmg:0,col:'#FF6A3D',cosmetic:true});
+   fly.shake=Math.max(fly.shake,16);beep(90,0.5,'sawtooth',0.22,-40);
+ }else if(g==='vacuum'){
+   fly.magnet=95;beep(880,0.18,'sine',0.16,240);
+ }else if(g==='overdrive'){
+   fly.od=210;beep(300,0.25,'square',0.16,420);
+ }else if(g==='scythe'){
+   fly.scythe=26;beep(520,0.16,'square',0.14,-200);
+ }else if(g==='freeze'){
+   fly.freeze=170;beep(1200,0.3,'sine',0.14,-500);
+ }
+ buildFlyUI();
 }
 const keys={};
 addEventListener('keydown',e=>{keys[e.code]=true;if(e.code==='Space')e.preventDefault();
+ if(scene===SCENE.FLY&&!fly.over&&(e.code==='Space'||e.code==='KeyF'))fireGadget();
  if(scene===SCENE.FLY&&fly.over&&fly.overT>40&&(e.code==='Space'||e.code==='Enter'))afterMission();});
 addEventListener('keyup',e=>keys[e.code]=false);
 
@@ -2302,9 +2374,22 @@ function updateFly(){
    else if(r<0.075){fly.gems.push(mkGem(60+Math.random()*(W-120),-30,true));}
    else if(r<0.235*gemShare){fly.gems.push(mkGem(60+Math.random()*(W-120)));}
    else if(r<0.275*gemShare){const bx=90+Math.random()*(W-180);for(let k=-1;k<=1;k++)fly.gems.push(mkGem(bx+k*46,-30-Math.abs(k)*24));}
-   else if(!bossOn||Math.random()<0.35){const w=38+Math.random()*46;fly.obstacles.push({x:60+Math.random()*(W-120),y:-40,w,h:w*0.7,
-     hp:w<52?1:(w<70?2:3),hitT:0,vx:level>=6?(Math.random()-0.5)*(1+level*0.07):0,
-     spin:Math.random()*7,spinV:(Math.random()-.5)*0.04,rock:(Math.random()*ROCKS.length)|0,sc:w/74});}
+   else if(!bossOn||Math.random()<0.35){
+     const roll=Math.random();
+     if(level>=4&&roll<Math.min(0.20,0.05+level*0.011)){
+       // a drone: slower, hunts your column, has to be shot
+       fly.obstacles.push({x:60+Math.random()*(W-120),y:-40,w:46,h:34,hp:2,hitT:0,
+         hunt:true,spin:0,spinV:0,rock:0,sc:46/74,drone:true});
+     }else if(level>=7&&roll<Math.min(0.34,0.14+level*0.011)){
+       // a spitter: sits in the field and shoots at you
+       const w=60;
+       fly.obstacles.push({x:60+Math.random()*(W-120),y:-40,w,h:w*0.7,hp:3,hitT:0,
+         spit:true,spitT:0,vx:0,spin:Math.random()*7,spinV:(Math.random()-.5)*0.02,
+         rock:(Math.random()*ROCKS.length)|0,sc:w/74});
+     }else{const w=38+Math.random()*46;fly.obstacles.push({x:60+Math.random()*(W-120),y:-40,w,h:w*0.7,
+       hp:w<52?1:(w<70?2:3),hitT:0,vx:level>=6?(Math.random()-0.5)*(1+level*0.07):0,
+       spin:Math.random()*7,spinV:(Math.random()-.5)*0.04,rock:(Math.random()*ROCKS.length)|0,sc:w/74});}
+   }
  }
  if(!bossOn&&level>=12&&fly.spawnT%Math.floor(every*7)===0){
    for(let k=0;k<6;k++){const w=32+Math.random()*14;
@@ -2343,7 +2428,8 @@ function updateFly(){
    g.y+=fly.speed;g.spin+=0.05;
    if(!g.got){
      const dx=g.x-fly.shipX,dy=g.y-fly.shipY;
-     if(magnet){const d=Math.hypot(dx,dy);if(d<190){g.x-=dx/d*3.4;g.y-=dy/d*1.6;}}
+     if(fly.magnet>0){const d=Math.hypot(dx,dy)||1;g.x-=dx/d*9.5;g.y-=dy/d*7.5;}
+     else if(magnet){const d=Math.hypot(dx,dy);if(d<190){g.x-=dx/d*3.4;g.y-=dy/d*1.6;}}
      const grabR=(g.gold?52:46)+fly.hitW*0.35;
      if(dx*dx+dy*dy<grabR*grabR){
        g.got=true;fly.combo++;fly.comboT=90;fly.maxCombo=Math.max(fly.maxCombo,fly.combo);
@@ -2355,25 +2441,65 @@ function updateFly(){
        const cz=document.getElementById('cz');if(cz){cz.textContent=fly.picked+' / '+fly.goal;cz.style.transform='scale(1.3)';setTimeout(()=>cz.style.transform='scale(1)',110);}
        const sc2=document.getElementById('score');if(sc2)sc2.textContent='💎 '+fly.crystals;
        const cb=document.getElementById('combo');if(cb)cb.textContent=fly.combo>=2?'COMBO x'+fly.combo:'';
+       if(++fly.gSinceGem>=6&&fly.gCharge<fly.gMax){
+         fly.gSinceGem=0;fly.gCharge++;fly.gFlash=10;buildFlyUI();}
        if(fly.picked>=fly.goal&&!(fly.boss&&fly.boss.hp>0))winMission();
      }
    }
  }
  fly.gems=fly.gems.filter(g=>g.y<H+40&&!g.got);
 
+ if(fly.gFlash>0)fly.gFlash--;
+ if(fly.magnet>0)fly.magnet--;
+ if(fly.freeze>0)fly.freeze--;
+ if(fly.od>0)fly.od--;
+ if(fly.scythe>0){
+   fly.scythe--;
+   const R=118;
+   for(const o of fly.obstacles){
+     if(o.dead)continue;
+     const dx=o.x-fly.shipX,dy=o.y-fly.shipY;
+     if(dx*dx+dy*dy<R*R){o.dead=true;spawnBurst(o.x,o.y,'#AEEFEC',12);
+       if(Math.random()<0.25)fly.gems.push(mkGem(o.x,o.y));}
+   }
+   fly.eBolts=fly.eBolts.filter(b=>{
+     const dx=b.x-fly.shipX,dy=b.y-fly.shipY;return dx*dx+dy*dy>=R*R;});
+   fly.obstacles=fly.obstacles.filter(o=>!o.dead);
+ }
  for(const o of fly.obstacles){
-   o.y+=fly.speed;o.spin+=o.spinV;if(o.hitT>0)o.hitT--;
-   if(o.vx){o.x+=o.vx;if(o.x<44||o.x>W-44)o.vx*=-1;}
+   // Frozen rocks hang where they are. Drones hunt: they slide toward your
+   // column and hold station, so they have to be shot rather than dodged.
+   if(!fly.freeze)o.y+=o.hunt?fly.speed*0.42:fly.speed;
+   o.spin+=fly.freeze?o.spinV*0.15:o.spinV;if(o.hitT>0)o.hitT--;
+   if(o.hunt&&!fly.freeze){
+     const d=fly.shipX-o.x;o.x+=Math.max(-1.9,Math.min(1.9,d*0.035));
+   }else if(o.vx&&!fly.freeze){o.x+=o.vx;if(o.x<44||o.x>W-44)o.vx*=-1;}
+   if(o.spit&&!fly.freeze){
+     o.spitT=(o.spitT||0)+1;
+     if(o.spitT>72&&o.y>0&&o.y<H*0.6){o.spitT=0;
+       const dx=fly.shipX-o.x,dy=fly.shipY-o.y,m=Math.hypot(dx,dy)||1;
+       fly.eBolts.push({x:o.x,y:o.y,vx:dx/m*3.4,vy:dy/m*3.4});
+       beep(180,0.09,'sawtooth',0.08,-60);}
+   }
    if(fly.invuln<=0){const pad=o.w*0.30;
      const dx=(o.x-fly.shipX)/(fly.hitW+pad),dy=(o.y-fly.shipY)/(fly.hitH+pad);
      if(dx*dx+dy*dy<1)hitShip();}
  }
  fly.obstacles=fly.obstacles.filter(o=>o.y<H+60);
+ for(const b of fly.eBolts){b.x+=b.vx;b.y+=b.vy;}
+ fly.eBolts=fly.eBolts.filter(b=>{
+   if(b.y>H+30||b.y<-30||b.x<-30||b.x>W+30)return false;
+   if(fly.invuln<=0){
+     const dx=(b.x-fly.shipX)/(fly.hitW+7),dy=(b.y-fly.shipY)/(fly.hitH+7);
+     if(dx*dx+dy*dy<1){hitShip();return false;}
+   }
+   return true;});
 
  const D=ship.defense>=0?DEFENSES[ship.defense]:{rate:0};
  if(D.rate){
    fly.fireT++;
-   if(fly.fireT%D.rate===0){
+   const rate=fly.od>0?Math.max(3,Math.round(D.rate/3)):D.rate;   // OVERDRIVE
+   if(fly.fireT%rate===0){
      if(D.ring)fly.pulses.push({x:fly.shipX,y:fly.shipY-10,r:16,max:265,dmg:D.dmg,col:D.col});
      else for(const b of D.bolts)
        fly.bolts.push({x:fly.shipX+b.x*3.2,y:fly.shipY-18,vx:b.vx,vy:-13,
@@ -2411,6 +2537,7 @@ function updateFly(){
          if(fly.picked>=fly.goal)winMission();}}}
  }
  for(const pu of fly.pulses){
+   if(pu.cosmetic)continue;    // Nova's shockwave is a flourish; it already cleared the field
    for(const o of fly.obstacles){
      if(o.dead||o.pulsed===pu)continue;
      const d=Math.hypot(o.x-pu.x,o.y-pu.y);
@@ -2478,9 +2605,55 @@ function drawFly(){
  const TC=THEMES[ship.theme];
 
  for(const g of fly.gems){if(!g.got)drawCrystal(g.x,g.y,g.r,g.spin,g.gold);}
- for(const o of fly.obstacles)drawRock(o);
+ for(const o of fly.obstacles){
+   drawRock(o);
+   // a drone reads as a machine, not a rock: a dark shell and a red eye that
+   // tells you it is tracking you
+   if(o.drone){
+     ctx.save();ctx.translate(o.x,o.y);
+     ctx.fillStyle='#1B2A34';ctx.beginPath();
+     ctx.ellipse(0,0,o.w*0.44,o.h*0.44,0,0,7);ctx.fill();
+     ctx.strokeStyle='#6C6E68';ctx.lineWidth=2;ctx.stroke();
+     const pulse=0.55+0.45*Math.sin(fly.dist*0.09);
+     ctx.globalCompositeOperation='lighter';
+     ctx.fillStyle='rgba(255,60,60,'+pulse.toFixed(2)+')';
+     ctx.beginPath();ctx.arc(0,0,o.w*0.16,0,7);ctx.fill();
+     ctx.restore();
+   }else if(o.spit){
+     ctx.save();ctx.translate(o.x,o.y);
+     ctx.globalCompositeOperation='lighter';
+     const t=Math.min(1,(o.spitT||0)/72);
+     ctx.fillStyle='rgba(255,120,40,'+(0.18+t*0.5).toFixed(2)+')';
+     ctx.beginPath();ctx.arc(0,0,o.w*0.20*(0.7+t*0.5),0,7);ctx.fill();
+     ctx.restore();
+   }
+ }
+ // whatever the spitters have fired
+ ctx.save();ctx.globalCompositeOperation='lighter';
+ for(const b of fly.eBolts){
+   ctx.fillStyle='rgba(255,170,90,0.9)';
+   ctx.beginPath();ctx.arc(b.x,b.y,5.5,0,7);ctx.fill();
+   ctx.fillStyle='rgba(255,255,255,0.85)';
+   ctx.beginPath();ctx.arc(b.x,b.y,2.4,0,7);ctx.fill();
+ }
+ ctx.restore();
+ // the scythe: a bright arc sweeping once around the ship
+ if(fly.scythe>0){
+   const t=1-fly.scythe/26,a0=-Math.PI/2+t*Math.PI*2;
+   ctx.save();ctx.globalCompositeOperation='lighter';
+   ctx.strokeStyle='rgba(174,239,236,'+(0.85*(1-t*0.5)).toFixed(2)+')';
+   ctx.lineWidth=13;ctx.lineCap='round';
+   ctx.beginPath();ctx.arc(fly.shipX,fly.shipY,112,a0-0.85,a0);ctx.stroke();
+   ctx.strokeStyle='rgba(255,255,255,0.9)';ctx.lineWidth=4;
+   ctx.beginPath();ctx.arc(fly.shipX,fly.shipY,112,a0-0.5,a0);ctx.stroke();
+   ctx.restore();
+ }
  for(const sp of fly.shields)drawShieldPickup(sp);
  if(fly.boss)drawBoss(fly.boss);
+ if(fly.freeze>0){
+   ctx.save();ctx.globalAlpha=Math.min(0.22,fly.freeze/170*0.22);
+   ctx.fillStyle='#78D9F0';ctx.fillRect(0,0,W,H);ctx.restore();
+ }
 
  ctx.save();ctx.globalCompositeOperation='lighter';
  for(let i=0;i<fly.trail.length;i++){const t=fly.trail[i],f=i/fly.trail.length;
