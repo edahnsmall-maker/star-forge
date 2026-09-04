@@ -189,21 +189,6 @@ function clipCell(poly,x0,x1,z0,z1){
    else if(ia)out.push(cut(a,b,e));}}
  return out;
 }
-// is the segment a-b part of the outline of poly? (its midpoint sits on one
-// of poly's own edges)
-function onEdge(poly,a,b){
- const mx=(a[0]+b[0])/2,mz=(a[1]+b[1])/2;
- for(let i=0;i<poly.length;i++){
-  const u=poly[i],v=poly[(i+1)%poly.length];
-  const dx=v[0]-u[0],dz=v[1]-u[1],L2=dx*dx+dz*dz;
-  if(L2<1e-12)continue;
-  let t=((mx-u[0])*dx+(mz-u[1])*dz)/L2;
-  if(t<0)t=0;else if(t>1)t=1;
-  const ex=u[0]+dx*t-mx,ez=u[1]+dz*t-mz;
-  if(ex*ex+ez*ez<1e-7)return true;
- }
- return false;
-}
 const polyArea=q=>{let a=0;for(let i=0;i<q.length;i++){const b=q[(i+1)%q.length];
  a+=q[i][0]*b[1]-b[0]*q[i][1];}return Math.abs(a)*0.5;};
 function pieceGeom(p){
@@ -243,11 +228,7 @@ function pieceGeom(p){
        if(cp.length<3||polyArea(cp)<0.02)continue;
        const k0=V.length;
        for(const q of cp)V.push(map(q[0],q[1],p.y+p.h));
-       // Only the cell edges that fall on the brick's real outline get a
-       // chamfer; the cut edges between cells must not, or the split shows as
-       // a grid drawn across the face.
-       const bnd=cp.map((q,t)=>onEdge(p.pts,q,cp[(t+1)%cp.length]));
-       F.push({i:cp.map((_,t)=>k0+t),cap:true,cell:true,bnd});
+       F.push({i:cp.map((_,t)=>k0+t),cap:true,cell:true});
      }
      if(F.length){subdiv=true;anySplit=true;}else F.length=0;
    }
@@ -273,7 +254,7 @@ function pieceGeom(p){
        nb=V.length;V.push([lo[0]+(lo2[0]-lo[0])*u,lo[1]+(lo2[1]-lo[1])*u,lo[2]+(lo2[2]-lo[2])*u]);
        nt=V.length;V.push([hi[0]+(hi2[0]-hi[0])*u,hi[1]+(hi2[1]-hi[1])*u,hi[2]+(hi2[2]-hi[2])*u]);
      }
-     F.push({i:[pb,nb,nt,pt],side:true,cell:true,bnd:[true,t===segs,true,t===1]});
+     F.push({i:[pb,nb,nt,pt],side:true,cell:true});
      pb=nb;pt=nt;
    }
  }
@@ -521,18 +502,7 @@ function drawPieces(c,pieces,TH,yaw,depthPass){
        c.globalCompositeOperation='source-over';
      }
      if(it.clear){c.strokeStyle=shade(it.col,0.3);c.lineWidth=0.7;c.stroke();}
-     else if(f.bnd){                      // a split face: real edges only
-       const P=f.i.map(k=>prj(g.V[k],cs,sn));
-       const cf1=Math.min(0.80,(0.30+0.70*L.fres)*GLOSS);
-       c.beginPath();
-       for(let i=0;i<P.length;i++){if(!f.bnd[i])continue;
-         const j=(i+1)%P.length;c.moveTo(P[i][0],P[i][1]);c.lineTo(P[j][0],P[j][1]);}
-       c.strokeStyle=shade(it.col,-0.40+1.02*L.k+L.spec*0.4);
-       c.lineWidth=f.cap?0.9:0.75;c.stroke();
-       c.globalAlpha=cf1;
-       c.strokeStyle=envCss(Math.min(1,L.ry+0.45));
-       c.lineWidth=f.cap?0.7:0.55;c.stroke();c.globalAlpha=1;
-     }
+     else if(f.cell){/* split faces fill only -- see note above */}
      else if(!(it.p.smooth&&f.side)){
        // the chamfer, lit by how much this face faces the key light, then
        // pushed toward the studio because a bevel is always near-grazing
@@ -1789,7 +1759,7 @@ function plateSprite(yaw,ss){
    SCENES
    ======================================================================= */
 const SHOW_PAD=false;   // the green baseplate. Flip to bring it back.
-const BUILD_ID='b32';
+const BUILD_ID='b33';
 const SCENE={BUILD:0,LOADOUT:1,FLY:2};
 let scene=SCENE.BUILD;
 let uiTop=176;          // bottom of the wrapped tab block, measured after layout
