@@ -1404,6 +1404,22 @@ const DEFENSES=[
      o.push(cyl(Math.cos(a)*2.4,1.8+Math.sin(a)*2.4,0.42,1.6,1.4,WHITE,'trim',{n:6}));}
      return o;})(),
  ]},
+ {name:'Scythe',unlock:11,rate:48,dmg:2,arc:true,arcR:80,col:'#AEEFEC',
+  bolts:[{x:0,vx:0}],
+  pieces:[
+   bx(-1.4,0.6,2.8,3,0,3,DGREY,'dark'),
+   cyl(0,2.2,0.7,3,1.6,SILVER,'light',{n:10}),
+   // the boom, and the curved blade on the end of it
+   tube(0,4.2,0.34,-2.6,3.4,SILVER,'light',{n:8}),
+   ...(function(){const o=[];
+     for(let i=0;i<7;i++){
+       const a=-0.95+i*0.32, r=3.5;
+       o.push(bx(Math.cos(a)*r-0.35,2.2+Math.sin(a)*r-0.35,0.75,0.75,
+                 3.4+i*0.12,0.6,i%2?TBLU:SILVER,i%2?'glass':'light',{studs:false}));
+     }
+     return o;})(),
+   ...mirX([cyl(1.5,1.2,0.36,3,1.2,AZ,'accent',{n:6})]),
+ ]},
  {name:'Lance',unlock:15,rate:14,dmg:2,big:true,col:'#D9A6F0',
   bolts:[{x:0,vx:0}],pieces:[
    bx(-1.6,0.4,3.2,3.4,0,3,BLACK,'dark'),
@@ -1572,6 +1588,7 @@ const ABOUT={
    Spines:'Spiky. Discourages tailgating.',
    Banner:'Flies your colours out behind you.'},
  DEFENSES:{Blaster:'One steady blaster. Never jams.',
+   Scythe:'A blade on a boom. Sweeps whatever gets close.',
    Twin:'Two barrels, fired together.',
    Scatter:'Sprays wide. Good when you are panicking.',
    Pulse:'A ring that goes out and shoves rocks apart.',
@@ -1587,7 +1604,7 @@ const PART_PAL={
            Phoenix:'gold',Bat:'bat',Sails:'canvas'},
  ENGINES: {Single:'blue',Twin:'ice',Ion:'alien',Pulse:'hazard',Quad:'red',Broom:'sand'},
  TAILS:   {Fin:'blue','Twin Fin':'red',Sail:'canvas',Boom:'yellow',Spines:'alien',Banner:'gold'},
- DEFENSES:{Blaster:'hazard',Twin:'yellow',Scatter:'red',Pulse:'alien',
+ DEFENSES:{Blaster:'hazard',Twin:'yellow',Scatter:'red',Pulse:'alien',Scythe:'ice',
            Lance:'ice',Catapult:'sand'},
 };
 // four options everywhere at level one, everything open by twelve
@@ -1759,7 +1776,7 @@ function plateSprite(yaw,ss){
    SCENES
    ======================================================================= */
 const SHOW_PAD=false;   // the green baseplate. Flip to bring it back.
-const BUILD_ID='b33';
+const BUILD_ID='b35';
 const SCENE={BUILD:0,LOADOUT:1,FLY:2};
 let scene=SCENE.BUILD;
 let uiTop=176;          // bottom of the wrapped tab block, measured after layout
@@ -2153,8 +2170,6 @@ const GADGETS=[
   desc:'Yanks every gem on screen straight to you'},
  {id:'overdrive',name:'OVERDRIVE',icon:'⚡',col:'#F2CD37',start:2,
   desc:'Your defence fires three times as fast'},
- {id:'scythe',name:'SCYTHE',icon:'🌀',col:'#AEEFEC',start:3,
-  desc:'A short sweep that clears anything close'},
  {id:'freeze',name:'FREEZE',icon:'❄️',col:'#78D9F0',start:2,
   desc:'Rocks stop dead for a few seconds'},
 ];
@@ -2245,7 +2260,7 @@ function startMission(){
   scorePerGem:chosenPower==='speed'?2:1,bossSpawned:false,
   gad:chosenGadget,gCharge:(GADGETS.find(g=>g.id===chosenGadget)||{start:2}).start,
   gMax:3,gSinceGem:0,gFlash:0,
-  magnet:0,freeze:0,scythe:0,od:0,eBolts:[]};
+  magnet:0,freeze:0,scythe:0,scytheId:0,scytheR:98,scytheDmg:2,od:0,eBolts:[]};
  buildFlyUI();beep(660,0.1,'square',0.14,200);
 }
 let touchSteer=0;
@@ -2298,8 +2313,6 @@ function fireGadget(){
    fly.magnet=95;beep(880,0.18,'sine',0.16,240);
  }else if(g==='overdrive'){
    fly.od=210;beep(300,0.25,'square',0.16,420);
- }else if(g==='scythe'){
-   fly.scythe=26;beep(520,0.16,'square',0.14,-200);
  }else if(g==='freeze'){
    fly.freeze=170;beep(1200,0.3,'sine',0.14,-500);
  }
@@ -2423,19 +2436,7 @@ function updateFly(){
  if(fly.magnet>0)fly.magnet--;
  if(fly.freeze>0)fly.freeze--;
  if(fly.od>0)fly.od--;
- if(fly.scythe>0){
-   fly.scythe--;
-   const R=118;
-   for(const o of fly.obstacles){
-     if(o.dead)continue;
-     const dx=o.x-fly.shipX,dy=o.y-fly.shipY;
-     if(dx*dx+dy*dy<R*R){o.dead=true;spawnBurst(o.x,o.y,'#AEEFEC',12);
-       if(Math.random()<0.25)fly.gems.push(mkGem(o.x,o.y));}
-   }
-   fly.eBolts=fly.eBolts.filter(b=>{
-     const dx=b.x-fly.shipX,dy=b.y-fly.shipY;return dx*dx+dy*dy>=R*R;});
-   fly.obstacles=fly.obstacles.filter(o=>!o.dead);
- }
+ if(fly.scythe>0)fly.scythe--;
  for(const o of fly.obstacles){
    // Frozen rocks hang where they are. Drones hunt: they slide toward your
    // column and hold station, so they have to be shot rather than dodged.
@@ -2470,11 +2471,21 @@ function updateFly(){
    fly.fireT++;
    const rate=fly.od>0?Math.max(3,Math.round(D.rate/3)):D.rate;   // OVERDRIVE
    if(fly.fireT%rate===0){
-     if(D.ring)fly.pulses.push({x:fly.shipX,y:fly.shipY-10,r:16,max:265,dmg:D.dmg,col:D.col});
+     if(D.arc){
+       fly.scythe=22;fly.scytheId=(fly.scytheId||0)+1;
+       fly.scytheR=D.arcR;fly.scytheDmg=D.dmg;
+       // The sweep only reaches 98px and the boss never comes closer than about
+       // 450, so on its own this would be an unwinnable pick on every third
+       // level. It throws a shard forward on the same beat.
+       for(const b of D.bolts)
+         fly.bolts.push({x:fly.shipX+b.x*3.2,y:fly.shipY-18,vx:b.vx,vy:-13,
+           dmg:D.dmg,col:D.col});
+     }
+     else if(D.ring)fly.pulses.push({x:fly.shipX,y:fly.shipY-10,r:16,max:265,dmg:D.dmg,col:D.col});
      else for(const b of D.bolts)
        fly.bolts.push({x:fly.shipX+b.x*3.2,y:fly.shipY-18,vx:b.vx,vy:-13,
          dmg:D.dmg,col:D.col,big:D.big});
-     beep(D.big?300:520,0.04,'square',0.07,D.big?-120:180);
+     beep(D.arc?420:(D.big?300:520),0.04,D.arc?'triangle':'square',0.07,D.arc?-260:(D.big?-120:180));
    }
  }
  for(const b of fly.bolts){b.x+=b.vx;b.y+=b.vy;}
@@ -2494,6 +2505,25 @@ function updateFly(){
            rock:(Math.random()*ROCKS.length)|0,sc:w2/74});}
    }else o.hitT=6;
  };
+ // The sweep sits here rather than with the other timers because it has to
+ // damage rocks, and breakRock is declared just above -- calling it earlier
+ // lands in its temporal dead zone.
+ if(fly.scythe>0){
+   const R=fly.scytheR||98, id=fly.scytheId||0;
+   for(const o of fly.obstacles){
+     if(o.dead||o.scythed===id)continue;
+     const dx=o.x-fly.shipX,dy=o.y-fly.shipY;
+     if(dx*dx+dy*dy<R*R){
+       o.scythed=id;                     // one bite per sweep, not one per frame
+       spawnBurst(o.x,o.y,'#AEEFEC',8);
+       o.hp-=(fly.scytheDmg||2);
+       if(o.hp<=0)breakRock(o,{x:o.x,y:o.y});
+     }
+   }
+   fly.eBolts=fly.eBolts.filter(b=>{
+     const dx=b.x-fly.shipX,dy=b.y-fly.shipY;return dx*dx+dy*dy>=R*R;});
+   fly.obstacles=fly.obstacles.filter(o=>!o.dead);
+ }
  for(const b of fly.bolts){
    for(const o of fly.obstacles){
      if(o.dead)continue;
@@ -2609,13 +2639,13 @@ function drawFly(){
  ctx.restore();
  // the scythe: a bright arc sweeping once around the ship
  if(fly.scythe>0){
-   const t=1-fly.scythe/26,a0=-Math.PI/2+t*Math.PI*2;
+   const t=1-fly.scythe/22,a0=-Math.PI/2+t*Math.PI*2,R=fly.scytheR||98;
    ctx.save();ctx.globalCompositeOperation='lighter';
    ctx.strokeStyle='rgba(174,239,236,'+(0.85*(1-t*0.5)).toFixed(2)+')';
    ctx.lineWidth=13;ctx.lineCap='round';
-   ctx.beginPath();ctx.arc(fly.shipX,fly.shipY,112,a0-0.85,a0);ctx.stroke();
+   ctx.beginPath();ctx.arc(fly.shipX,fly.shipY,R,a0-0.85,a0);ctx.stroke();
    ctx.strokeStyle='rgba(255,255,255,0.9)';ctx.lineWidth=4;
-   ctx.beginPath();ctx.arc(fly.shipX,fly.shipY,112,a0-0.5,a0);ctx.stroke();
+   ctx.beginPath();ctx.arc(fly.shipX,fly.shipY,R,a0-0.5,a0);ctx.stroke();
    ctx.restore();
  }
  for(const sp of fly.shields)drawShieldPickup(sp);
