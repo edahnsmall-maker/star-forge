@@ -85,9 +85,18 @@ function shade(hex,amt){
   let r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
   if(amt>0){r+=(255-r)*amt;g+=(255-g)*amt;b+=(255-b)*amt;}
   else{const t=-amt;                      // toward a cool ambient, not toward black
-    r=r*(1-t)+20*t;g=g*(1-t)+28*t;b=b*(1-t)+44*t;}
+    r=r*(1-t)+27*t;g=g*(1-t)+29*t;b=b*(1-t)+36*t;}
   v='rgb('+(r|0)+','+(g|0)+','+(b|0)+')';_shc.set(k,v);return v;
 }
+const _hrc=new Map();
+function headroom(hex){                 // how much room a colour has before it clips
+ let v=_hrc.get(hex);if(v!==undefined)return v;
+ if(!hex||hex[0]!=='#'||hex.length<7){_hrc.set(hex,1);return 1;}
+ const l=(parseInt(hex.slice(1,3),16)*0.299+parseInt(hex.slice(3,5),16)*0.587+
+          parseInt(hex.slice(5,7),16)*0.114)/255;
+ v=1-0.62*l*l;_hrc.set(hex,v);return v;
+}
+const hash2=(a,b)=>{const t=Math.sin(a*127.1+b*311.7)*43758.5453;return t-Math.floor(t);};
 function hexA(hex,a){if(!hex||hex[0]!=='#'||hex.length<7)return hex;
   const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
   return'rgba('+r+','+g+','+b+','+a+')';}
@@ -209,7 +218,18 @@ function faceLit(n,cs,sn){
         fres,                          // raw Schlick, for the reflection lerp
         ry:rry};
 }
-const prj=(v,cs,sn)=>[v[0]*cs+v[2]*sn,(-v[0]*sn+v[2]*cs)*TILT-v[1]*RISE];
+/* A real camera, not a game camera. Pure axonometric keeps every edge
+   parallel, which is a large part of why a render reads as CG: a photograph
+   of something this small converges -- the far edge of the plate is visibly
+   shorter than the near one. CAMD is the camera distance in the same units as
+   the geometry; larger is a longer lens. Sorting still uses depth(), which is
+   unaffected, and a planar face stays planar under a perspective divide, so
+   nothing downstream changes. */
+const CAMD=1020;
+const prj=(v,cs,sn)=>{
+ const zz=-v[0]*sn+v[2]*cs;
+ const k=CAMD/(CAMD-(TILT*v[1]+RISE*zz));
+ return[(v[0]*cs+v[2]*sn)*k,(zz*TILT-v[1]*RISE)*k];};
 const bbox=pts=>{let a=1e9,b=1e9,c=-1e9,d=-1e9;
  for(const q of pts){if(q[0]<a)a=q[0];if(q[0]>c)c=q[0];if(q[1]<b)b=q[1];if(q[1]>d)d=q[1];}
  return[a,b,c,d];};
@@ -236,6 +256,11 @@ function drawPieces(c,pieces,TH,yaw,depthPass){
  for(const p of pieces){
    const g=pieceGeom(p);
    const col=(TH&&!TH.natural&&p.r&&TH[p.r])||p.c;
+   // a filmic knee: the brighter the plastic already is, the less headroom a
+   // highlight has before it clips, which is what flattened the white bricks
+   const hl=headroom(col);
+   // no two bricks in a real photo are mathematically identical
+   const jit=((p._j===undefined)?(p._j=(hash2(p.pts[0][0],p.pts[0][1]+p.y)-0.5)*0.036):p._j);
    const clear=p.r==='glass';
    let capD=-1e9;
    for(const f of g.F){
@@ -244,7 +269,7 @@ function drawPieces(c,pieces,TH,yaw,depthPass){
      let d=0;for(const k of f.i)d+=depth(g.V[k]);
      d/=f.i.length;
      if(f.cap&&d>capD)capD=d;
-     items.push({d,f,g,col,clear,p,L});
+     items.push({d,f,g,col,clear,p,L,hl,jit});
    }
    if(p.studs!==false&&!p.hs&&(p.ts===undefined||p.ts===1)&&(p.ax||'y')==='y'){
      const bb=p._bb||(p._bb=bbox(p.pts)),top=(p.y+p.h)*PLATE-CY;
@@ -255,7 +280,7 @@ function drawPieces(c,pieces,TH,yaw,depthPass){
        const v=[sx*STUD,top,sz*STUD-CZ];
        // a stud must never sort behind the face it stands on -- on a big flat
        // piece the face's own centroid depth is deeper than half its studs
-       items.push({d:Math.max(depth(v),capD)+0.02,stud:v,col,clear:false,p});
+       items.push({d:Math.max(depth(v),capD)+0.02,stud:v,col,clear:false,p,hl,jit});
      }
    }
  }
@@ -267,9 +292,9 @@ function drawPieces(c,pieces,TH,yaw,depthPass){
  const ST={hi:Math.min(0.62,_lt.s+0.46+_lt.spec*0.5),
            mid:_lt.s+0.30, lo:_lt.s+0.06,
            band:Math.min(0.34,0.12+_ls.spec*0.9),
-           a0:Math.min(0.46,0.12+_lt.spec*1.05).toFixed(3),
-           a1:Math.min(0.14,0.03+_lt.spec*0.30).toFixed(3),
-           ring:Math.min(0.30,0.11+_lt.spec*0.60).toFixed(3)};
+           a0:Math.min(0.46,0.12+_lt.spec*1.05),
+           a1:Math.min(0.14,0.03+_lt.spec*0.30),
+           ring:Math.min(0.30,0.11+_lt.spec*0.60)};
  if(depthPass){                       // flat greys, nearest white -- an AO input
    const lo=items.length?items[0].d:0,hi=items.length?items[items.length-1].d:1;
    const span=Math.max(1e-6,hi-lo);
@@ -320,8 +345,8 @@ function drawPieces(c,pieces,TH,yaw,depthPass){
      c.fillStyle=top;c.fill();
      const cg=c.createRadialGradient(q[0]+LDIR[0]*sr*0.44,yt+LDIR[1]*sr*0.40,sr*0.04,
                                      q[0]+LDIR[0]*sr*0.30,yt+LDIR[1]*sr*0.28,sr*0.85);
-     cg.addColorStop(0,'rgba(255,255,255,'+ST.a0+')');
-     cg.addColorStop(0.42,'rgba(255,254,248,'+ST.a1+')');
+     cg.addColorStop(0,'rgba(255,255,255,'+(ST.a0*it.hl).toFixed(3)+')');
+     cg.addColorStop(0.42,'rgba(255,254,248,'+(ST.a1*it.hl).toFixed(3)+')');
      cg.addColorStop(1,'rgba(255,255,255,0)');
      c.globalCompositeOperation='lighter';c.fillStyle=cg;c.fill();
      c.globalCompositeOperation='source-over';
@@ -330,7 +355,7 @@ function drawPieces(c,pieces,TH,yaw,depthPass){
      if(sr>2.2){
        c.strokeStyle=shade(it.col,-0.16);c.lineWidth=Math.max(0.35,sr*0.11);
        c.beginPath();c.ellipse(q[0],yt-sr*0.05,sr*0.52,sr*0.52*TILT,0,0,7);c.stroke();
-       c.strokeStyle='rgba(255,255,255,'+ST.ring+')';c.lineWidth=Math.max(0.3,sr*0.09);
+       c.strokeStyle='rgba(255,255,255,'+(ST.ring*it.hl).toFixed(3)+')';c.lineWidth=Math.max(0.3,sr*0.09);
        const a=Math.atan2(LDIR[1],LDIR[0]);
        c.beginPath();c.ellipse(q[0],yt-sr*0.10,sr*0.5,sr*0.5*TILT,0,a-1.25,a+1.25);c.stroke();
      }
@@ -349,12 +374,12 @@ function drawPieces(c,pieces,TH,yaw,depthPass){
      const gs=Math.max(0.22,Math.min(1,2400/Math.max(1,area)));
      if(area>36){
        const gr=c.createLinearGradient(0,ya,0,yb);
-       gr.addColorStop(0,shade(it.col,L.s+0.15*gs));
-       gr.addColorStop(0.32,shade(it.col,L.s+0.04*gs));
-       gr.addColorStop(0.82,shade(it.col,L.s-0.07*gs));
-       gr.addColorStop(1,shade(it.col,L.s+0.03*gs));   // bounce off the surface below
+       gr.addColorStop(0,shade(it.col,L.s+it.jit+0.15*gs));
+       gr.addColorStop(0.32,shade(it.col,L.s+it.jit+0.04*gs));
+       gr.addColorStop(0.82,shade(it.col,L.s+it.jit-0.07*gs));
+       gr.addColorStop(1,shade(it.col,L.s+it.jit+0.03*gs));  // bounce off the surface below
        c.fillStyle=gr;
-     }else c.fillStyle=shade(it.col,L.s);
+     }else c.fillStyle=shade(it.col,L.s+it.jit);
      c.fill();
      // The reflection. out = base*(1-F) + studio*F -- a lerp, not an add, so a
      // white brick can't blow out and a dark one still picks up a real mirror.
@@ -374,7 +399,7 @@ function drawPieces(c,pieces,TH,yaw,depthPass){
      // the colour: a highlight on a dark blue brick goes near-white in a photo,
      // it does not go pale blue. Graded so the light reads as being overhead.
      if(L.spec>0.012){
-       const a0=Math.min(0.34,L.spec*0.80),a1=Math.min(0.14,L.spec*0.26);
+       const a0=Math.min(0.34,L.spec*0.80)*it.hl,a1=Math.min(0.14,L.spec*0.26)*it.hl;
        const sg=c.createLinearGradient(0,ya,0,yb);
        sg.addColorStop(0,'rgba(255,253,246,'+a0.toFixed(3)+')');
        sg.addColorStop(0.45,'rgba(255,252,244,'+((a0*0.42+a1*0.58)).toFixed(3)+')');
@@ -387,8 +412,8 @@ function drawPieces(c,pieces,TH,yaw,depthPass){
        const hx=xa+aw*(0.5+LDIR[0]*0.30),hy=ya+ah*(0.5+LDIR[1]*0.30),
              hr=Math.min(Math.max(aw,ah)*0.5,46);
        const hg=c.createRadialGradient(hx,hy,hr*0.05,hx,hy,hr);
-       hg.addColorStop(0,'rgba(255,255,255,'+Math.min(0.30,L.spec*0.30).toFixed(3)+')');
-       hg.addColorStop(0.55,'rgba(255,255,255,'+Math.min(0.14,L.spec*0.13).toFixed(3)+')');
+       hg.addColorStop(0,'rgba(255,255,255,'+(Math.min(0.30,L.spec*0.30)*it.hl).toFixed(3)+')');
+       hg.addColorStop(0.55,'rgba(255,255,255,'+(Math.min(0.14,L.spec*0.13)*it.hl).toFixed(3)+')');
        hg.addColorStop(1,'rgba(255,255,255,0)');
        c.globalCompositeOperation='lighter';c.fillStyle=hg;c.fill();
        c.globalCompositeOperation='source-over';
@@ -410,7 +435,7 @@ function drawPieces(c,pieces,TH,yaw,depthPass){
 
 /* ---------- sprite cache: a model is drawn once per viewing angle ---------- */
 const SPR=new Map();
-function makeSprite(pieces,TH,yaw,SS){
+function makeSprite(pieces,TH,yaw,SS,dof){
  SS=SS||2;
  if(!pieces.length){const e=document.createElement('canvas');e.width=e.height=1;
    return{cv:e,ox:0,oy:0,w:1,h:1,empty:true};}
@@ -425,7 +450,7 @@ function makeSprite(pieces,TH,yaw,SS){
  const g=cv.getContext('2d');g.setTransform(SS,0,0,SS,0,0);
  g.translate(-ax+pad,-ay+pad);
  drawPieces(g,pieces,TH,yaw);
- applyAO(cv,pieces,TH,yaw,SS,ax,ay,pad);
+ applyAO(cv,pieces,TH,yaw,SS,ax,ay,pad,dof);
  return{cv,ox:ax-pad,oy:ay-pad,w,h};
 }
 // Contact shadows. Render the same geometry once more as flat depth, then
@@ -434,7 +459,7 @@ function makeSprite(pieces,TH,yaw,SS){
 // stud, and its absence is most of what read as "computer graphics".
 const AO_DIRS=(function(){const d=[];for(let i=0;i<8;i++){const a=i/8*Math.PI*2+0.19;
  d.push([Math.cos(a),Math.sin(a)]);}return d;})();
-function applyAO(cv,pieces,TH,yaw,SS,ax,ay,pad){
+function applyAO(cv,pieces,TH,yaw,SS,ax,ay,pad,dof){
  // AO is low-frequency, so compute it at a fixed budget instead of scaling
  // with the sprite -- a 6x desktop bake costs the same as a 2x one
  const AOMAX=560,k=Math.min(0.5,AOMAX/Math.max(cv.width,cv.height));
@@ -472,10 +497,69 @@ function applyAO(cv,pieces,TH,yaw,SS,ax,ay,pad){
  c2.globalCompositeOperation='multiply';
  c2.drawImage(ao,0,0,cv.width,cv.height);       // upscale doubles as the blur
  c2.restore();
+ applyBounce(cv,SS);
+ // depth of field only makes sense for a scene with depth in it: an asteroid
+ // tumbling on its own is all at one distance from the camera
+ if(dof)applyDOF(cv,src,dw,dh,SS);
 }
-function sprite(key,pieces,TH,yaw,SS){
+/* Light bounces between the bricks. A white plate beside a red brick picks up
+   a little red in a photograph, and the absence of that is part of why every
+   piece looks like it was cut out and pasted down. A blurred copy of the
+   model, masked back to its own silhouette and added at a low weight, is the
+   cheap standing-in for a bounce pass -- additive, which is the right form,
+   just without knowing which surface it came from. */
+function applyBounce(cv,SS){
+ if(!HAS_FILTER)return;
+ const t=document.createElement('canvas');
+ t.width=cv.width;t.height=cv.height;
+ const g=t.getContext('2d');
+ g.filter='blur('+Math.max(2,4.5*SS).toFixed(1)+'px)';
+ g.drawImage(cv,0,0);
+ g.filter='none';
+ g.globalCompositeOperation='destination-in';   // keep it inside the model
+ g.drawImage(cv,0,0);
+ const c4=cv.getContext('2d');
+ c4.save();c4.setTransform(1,0,0,1,0,0);
+ c4.globalCompositeOperation='lighter';c4.globalAlpha=0.055;
+ c4.drawImage(t,0,0);
+ c4.restore();
+}
+/* Depth of field. A photograph of something this small has a shallow field --
+   the far corner of the plate goes soft while the hull stays sharp -- and an
+   image that is uniformly crisp from front to back reads as CG whatever the
+   shading does. The depth pass AO just rendered is reused as the mask, so
+   this costs one blurred copy per bake and nothing per frame. */
+function applyDOF(cv,src,dw,dh,SS){
+ if(!HAS_FILTER)return;
+ const r=Math.min(3.4,Math.max(0.9,1.05*SS));
+ // focus on the nearer half: depth is 28..255 with nearest white
+ const FOCUS=196, mk=document.createElement('canvas');
+ mk.width=dw;mk.height=dh;
+ const mg=mk.getContext('2d'),mi=mg.createImageData(dw,dh),m=mi.data;
+ for(let i=0;i<dw*dh;i++){
+  const j=i*4;
+  if(src[j+3]===0)continue;
+  const d=src[j],t=(FOCUS-d)/150;               // behind focus only
+  if(t<=0)continue;
+  m[j+3]=Math.min(158,t*t*200)|0;
+ }
+ mg.putImageData(mi,0,0);
+ const bl=document.createElement('canvas');
+ bl.width=cv.width;bl.height=cv.height;
+ const bg=bl.getContext('2d');
+ bg.filter='blur('+r.toFixed(2)+'px)';
+ bg.drawImage(cv,0,0);
+ bg.filter='none';
+ bg.globalCompositeOperation='destination-in';
+ bg.drawImage(mk,0,0,cv.width,cv.height);       // upscaling the mask softens it
+ const c3=cv.getContext('2d');
+ c3.save();c3.setTransform(1,0,0,1,0,0);
+ c3.drawImage(bl,0,0);
+ c3.restore();
+}
+function sprite(key,pieces,TH,yaw,SS,dof){
  let s=SPR.get(key);if(s)return s;
- s=makeSprite(pieces,TH,yaw,SS);SPR.set(key,s);
+ s=makeSprite(pieces,TH,yaw,SS,dof);SPR.set(key,s);
  if(SPR.size>36){SPR.clear();SPR.set(key,s);}
  return s;
 }
@@ -1258,11 +1342,11 @@ function shipPieces(){
  if(ship.defense>=0)out=out.concat(placeZ(DEFENSES[ship.defense].pieces,dy,dz));
  return out;
 }
-function shipSprite(yaw,ss){
+function shipSprite(yaw,ss,dof){
  const q=Math.round(yaw*24)/24;
  return sprite('s'+[ship.cockpit,ship.wings,ship.body,ship.engine,ship.tail,
-   ship.defense,ship.pilot,ship.theme].join(',')+'_'+q.toFixed(3)+'_'+ss,
-   shipPieces(),THEMES[ship.theme],q,ss);
+   ship.defense,ship.pilot,ship.theme].join(',')+'_'+q.toFixed(3)+'_'+ss+(dof?'_d':''),
+   shipPieces(),THEMES[ship.theme],q,ss,dof);
 }
 // exactly the device pixels one model unit will occupy, so drawImage maps
 // 1:1 and nothing is resampled on the way to the screen
@@ -1281,8 +1365,8 @@ function thruster(c,x,y,r,t,C){if(t<=0)return;
   c.quadraticCurveTo(x,y+len*0.5,x,y+len*0.7*flick);
   c.quadraticCurveTo(x,y+len*0.5,x+r*0.45,y);c.closePath();c.fill();
   c.restore();}
-function drawShip(c,x,y,s,t=0.6,yaw=0){
- const sp=shipSprite(yaw,bakeSS(s)),pal=THEMES[ship.theme];
+function drawShip(c,x,y,s,t=0.6,yaw=0,dof){
+ const sp=shipSprite(yaw,bakeSS(s),dof),pal=THEMES[ship.theme];
  if(sp.empty)return;
  c.save();c.translate(x,y);c.scale(s,s);
  if(t>0&&ship.engine>=0){const cs=Math.cos(yaw),sn=Math.sin(yaw);
@@ -1357,16 +1441,16 @@ function shipFootprint(){
 function plateOf(f){
  const k='bp_'+f.hw+'_'+f.z0+'_'+f.z1;
  let pl=_bpc.get(k);
- if(!pl){pl=[bx(-f.hw,f.z0,f.hw*2,f.z1-f.z0,-1,1,'#4B9C34')];_bpc.set(k,pl);}
+ if(!pl){pl=[bx(-f.hw,f.z0,f.hw*2,f.z1-f.z0,-1,1,'#4E9440')];_bpc.set(k,pl);}
  return pl;}
 function plateSprite(yaw,ss){
  const f=shipFootprint(),q=Math.round(yaw*24)/24;
- return sprite('bp_'+f.hw+'_'+f.z0+'_'+f.z1+'_'+q.toFixed(3)+'_'+ss,plateOf(f),null,q,ss);}
+ return sprite('bp_'+f.hw+'_'+f.z0+'_'+f.z1+'_'+q.toFixed(3)+'_'+ss,plateOf(f),null,q,ss,true);}
 
 /* =======================================================================
    SCENES
    ======================================================================= */
-const BUILD_ID='b14';
+const BUILD_ID='b16';
 const SCENE={BUILD:0,LOADOUT:1,FLY:2};
 let scene=SCENE.BUILD;
 let level=1;const MAX_LEVEL=20;
@@ -1581,7 +1665,7 @@ function drawBuild(){
  ctx.globalAlpha=0.95;ctx.drawImage(bp.cv,bp.ox,bp.oy,bp.w,bp.h);ctx.globalAlpha=1;ctx.restore();
  if(!empty){                                     // the model's own shadow on the plate
    const q=Math.round(buildYaw*24)/24,ss=bakeSS(sc);
-   const sp=shipSprite(buildYaw,ss);
+   const sp=shipSprite(buildYaw,ss,true);
    if(!sp.empty){
      const shc=shadowOf(sp,'sh'+[ship.cockpit,ship.wings,ship.body,ship.engine,
        ship.tail,ship.defense,ship.pilot].join(',')+q.toFixed(3)+ss);
@@ -1592,7 +1676,7 @@ function drawBuild(){
      ctx.restore();
    }
  }
- drawShip(ctx,cx,cy-14+Math.sin(bob)*5,sc,0.45+0.25*Math.sin(bob*2),buildYaw);
+ drawShip(ctx,cx,cy-14+Math.sin(bob)*5,sc,0.45+0.25*Math.sin(bob*2),buildYaw,true);
  drawVignette();
 }
 // drag anywhere on the pad to spin the model

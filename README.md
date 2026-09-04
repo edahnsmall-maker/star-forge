@@ -75,6 +75,30 @@ bake costs about what a flight one does. The model also throws a squashed,
 blurred silhouette of itself onto the baseplate. Between them they are most
 of what separates a render from a photograph of a set.
 
+**The camera is a camera.** Pure axonometric keeps every edge parallel, and
+that alone reads as CG -- a photograph of something this small converges, the
+far edge of the plate visibly shorter than the near one. The projection
+carries a perspective divide at a camera distance of about a long lens.
+Sorting is unaffected (it uses view depth, not the projection) and a planar
+face stays planar under the divide, so nothing downstream changed.
+
+**There is a depth of field.** A photo of a model this size has a shallow
+field: the far corner goes soft while the hull stays sharp. An image that is
+uniformly crisp front to back gives itself away whatever the shading does.
+The depth pass rendered for the occlusion is reused as the mask, so it costs
+one blurred copy per bake and nothing per frame -- and it is only applied to
+the build scene, since an asteroid tumbling on its own is all at one distance.
+
+**Light bounces.** A white plate beside a red brick picks up a little red.
+A blurred copy of the model, masked back to its own silhouette and added at a
+low weight, stands in for a bounce pass: additive, which is the right form,
+without knowing which surface it came from.
+
+**Highlights roll off.** Each colour gets a headroom term from its own
+luminance, so a highlight on a white brick cannot clip to a flat white patch
+the way it does without one. Every brick also carries a tiny deterministic
+shade offset, because in a photograph no two are mathematically identical.
+
 **Faces sort individually.** One sort order per whole piece can't describe a
 wing plate that stretches from nose to tail, which made pieces pop in and out
 during the build-screen spin. Each face carries its own depth instead.
