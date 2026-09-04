@@ -383,7 +383,7 @@ function drawPieces(c,pieces,TH,yaw,depthPass){
      c.fill();
      // The reflection. out = base*(1-F) + studio*F -- a lerp, not an add, so a
      // white brick can't blow out and a dark one still picks up a real mirror.
-     const F=Math.min(0.94,L.fres*GLOSS*(it.clear?1.25:1));
+     const F=Math.min(0.94,L.fres*GLOSS)*(it.clear?0.45:1);
      if(F>0.015){
        c.globalAlpha=F;
        if(area>36){
@@ -399,7 +399,8 @@ function drawPieces(c,pieces,TH,yaw,depthPass){
      // the colour: a highlight on a dark blue brick goes near-white in a photo,
      // it does not go pale blue. Graded so the light reads as being overhead.
      if(L.spec>0.012){
-       const a0=Math.min(0.34,L.spec*0.80)*it.hl,a1=Math.min(0.14,L.spec*0.26)*it.hl;
+       const gk=it.clear?0.40:1;
+       const a0=Math.min(0.34,L.spec*0.80)*it.hl*gk,a1=Math.min(0.14,L.spec*0.26)*it.hl*gk;
        const sg=c.createLinearGradient(0,ya,0,yb);
        sg.addColorStop(0,'rgba(255,253,246,'+a0.toFixed(3)+')');
        sg.addColorStop(0.45,'rgba(255,252,244,'+((a0*0.42+a1*0.58)).toFixed(3)+')');
@@ -497,10 +498,10 @@ function applyAO(cv,pieces,TH,yaw,SS,ax,ay,pad,dof){
  c2.globalCompositeOperation='multiply';
  c2.drawImage(ao,0,0,cv.width,cv.height);       // upscale doubles as the blur
  c2.restore();
+ // Depth of field went in here and came straight back out: as the model
+ // turned, different pieces crossed the focal plane and their detail winked in
+ // and out. Correct for a camera, wrong for something you spin in your hand.
  applyBounce(cv,SS);
- // depth of field only makes sense for a scene with depth in it: an asteroid
- // tumbling on its own is all at one distance from the camera
- if(dof)applyDOF(cv,src,dw,dh,SS);
 }
 /* Light bounces between the bricks. A white plate beside a red brick picks up
    a little red in a photograph, and the absence of that is part of why every
@@ -513,49 +514,16 @@ function applyBounce(cv,SS){
  const t=document.createElement('canvas');
  t.width=cv.width;t.height=cv.height;
  const g=t.getContext('2d');
- g.filter='blur('+Math.max(2,4.5*SS).toFixed(1)+'px)';
+ g.filter='blur('+Math.max(2,3.2*SS).toFixed(1)+'px)';
  g.drawImage(cv,0,0);
  g.filter='none';
  g.globalCompositeOperation='destination-in';   // keep it inside the model
  g.drawImage(cv,0,0);
  const c4=cv.getContext('2d');
  c4.save();c4.setTransform(1,0,0,1,0,0);
- c4.globalCompositeOperation='lighter';c4.globalAlpha=0.055;
+ c4.globalCompositeOperation='lighter';c4.globalAlpha=0.03;
  c4.drawImage(t,0,0);
  c4.restore();
-}
-/* Depth of field. A photograph of something this small has a shallow field --
-   the far corner of the plate goes soft while the hull stays sharp -- and an
-   image that is uniformly crisp from front to back reads as CG whatever the
-   shading does. The depth pass AO just rendered is reused as the mask, so
-   this costs one blurred copy per bake and nothing per frame. */
-function applyDOF(cv,src,dw,dh,SS){
- if(!HAS_FILTER)return;
- const r=Math.min(3.4,Math.max(0.9,1.05*SS));
- // focus on the nearer half: depth is 28..255 with nearest white
- const FOCUS=196, mk=document.createElement('canvas');
- mk.width=dw;mk.height=dh;
- const mg=mk.getContext('2d'),mi=mg.createImageData(dw,dh),m=mi.data;
- for(let i=0;i<dw*dh;i++){
-  const j=i*4;
-  if(src[j+3]===0)continue;
-  const d=src[j],t=(FOCUS-d)/150;               // behind focus only
-  if(t<=0)continue;
-  m[j+3]=Math.min(158,t*t*200)|0;
- }
- mg.putImageData(mi,0,0);
- const bl=document.createElement('canvas');
- bl.width=cv.width;bl.height=cv.height;
- const bg=bl.getContext('2d');
- bg.filter='blur('+r.toFixed(2)+'px)';
- bg.drawImage(cv,0,0);
- bg.filter='none';
- bg.globalCompositeOperation='destination-in';
- bg.drawImage(mk,0,0,cv.width,cv.height);       // upscaling the mask softens it
- const c3=cv.getContext('2d');
- c3.save();c3.setTransform(1,0,0,1,0,0);
- c3.drawImage(bl,0,0);
- c3.restore();
 }
 function sprite(key,pieces,TH,yaw,SS,dof){
  let s=SPR.get(key);if(s)return s;
@@ -642,6 +610,53 @@ const GREY='#9BA19D',DGREY='#6C6E68',BLACK='#1B2A34',WHITE='#F4F4F4',SILVER='#A5
       TAN='#DEC69C',STONE='#A3A2A4',WOOD='#7A5230',DWOOD='#583927',
       SAIL='#EFE3C8',BATW='#3D2A52',DPURP='#5B3A8C',BRIS='#C8A96A',
       TYEL='#F5CD2F',TBLU='#AEEFEC',TGRN='#9BE854',TORG='#FF9A3D',TPUR='#C8A0E0';
+
+/* One dominant colour per option, with its accent used sparingly and loudly.
+   Every part used to carry four or five colours of its own, so a finished ship
+   came out the same confetti whatever you picked, and the options read as
+   "slightly different shapes" instead of as parts pulled from different sets.
+   Silver and dark-grey fittings are left alone -- a gun barrel is metal
+   whatever the wing is painted. */
+const PAL={
+ blue   :{hull:BLUE,  light:BLUE,  trim:WHITE, accent:RED,   dark:NAVY},
+ ice    :{hull:WHITE, light:WHITE, trim:AZ,    accent:AZ,    dark:'#2B3B49'},
+ hazard :{hull:BLACK, light:BLACK, trim:ORG,   accent:ORG,   dark:'#0E161C'},
+ red    :{hull:RED,   light:RED,   trim:WHITE, accent:WHITE, dark:DRED},
+ alien  :{hull:PURP,  light:PURP,  trim:LIME,  accent:LIME,  dark:DPURP},
+ yellow :{hull:YEL,   light:YEL,   trim:BLACK, accent:BLACK, dark:'#3A3524'},
+ airline:{hull:WHITE, light:WHITE, trim:NAVY,  accent:NAVY,  dark:NAVY},
+ jungle :{hull:GRN,   light:GRN,   trim:LIME,  accent:LIME,  dark:'#14331F'},
+ sand   :{hull:TAN,   light:TAN,   trim:WOOD,  accent:DRED,  dark:DWOOD},
+ gold   :{hull:GOLD,  light:GOLD,  trim:BLACK, accent:DRED,  dark:'#3A2E1C'},
+ bat    :{hull:BATW,  light:BATW,  trim:PURP,  accent:LIME,  dark:'#241733'},
+ candy  :{hull:PINK,  light:PINK,  trim:WHITE, accent:PURP,  dark:'#5B3A8C'},
+ canvas :{hull:WOOD,  light:WOOD,  trim:SAIL,  accent:DRED,  dark:DWOOD},
+};
+const METAL={};METAL[SILVER]=1;METAL[DGREY]=1;METAL[STONE]=1;METAL[BLACK]=1;
+function tintPart(o){
+ if(!o.pal||!o.pieces||!o.pieces.length)return;
+ o.pieces=o.pieces.map(q=>{
+  if(q.r==='glass')return q;
+  if(METAL[q.c]&&(q.r==='light'||q.r==='dark'))return q;   // fittings stay metal
+  const c=o.pal[q.r];
+  if(!c||c===q.c)return q;
+  const n=Object.assign({},q,{c});delete n._g;delete n._bb;return n;
+ });
+}
+
+// a four-blade propeller, seen from above
+const prop=(cx,cz,y,rad,col,role)=>{
+ const o=[];
+ for(let i=0;i<4;i++){
+  const a=i*Math.PI/2+0.42,ca=Math.cos(a),sa=Math.sin(a),w=0.62;
+  o.push(px([[cx+ca*0.55-sa*w, cz+sa*0.55+ca*w],
+             [cx+ca*rad-sa*w*0.45, cz+sa*rad+ca*w*0.45],
+             [cx+ca*rad+sa*w*0.45, cz+sa*rad-ca*w*0.45],
+             [cx+ca*0.55+sa*w, cz+sa*0.55-ca*w]],y,0.5,col,role||'accent',{studs:false}));
+ }
+ o.push(cyl(cx,cz,0.5,y-0.5,1.6,DGREY,'light',{n:8}));
+ return o;
+};
 
 const pilotAt=(x,z,y,P)=>[
  bx(x-0.7,z-0.7,1.4,1.4,y,2,P.shirt,'accent'),
@@ -1035,6 +1050,47 @@ const WINGS=[
    cyl(3.6,11,0.5,5.4,1.4,TORG,'glass',{n:6}),
    cyl(3.6,16.4,0.5,2,1.4,TORG,'glass',{n:6}),
  ]},
+ // three long bars and nothing between them -- a scaffold, not a wing.
+ // Yellow with black hazard stripes, like something off a building site.
+ {name:'Girder',unlock:2,pal:PAL.yellow,pieces:(function(){
+   const o=[],ZS=[9.0,12.8,16.6];
+   ZS.forEach((z,i)=>{
+     o.push(bx(0.4,z,8.8,1.2,1+i*0.35,1,YEL,'hull'));           // the long bar
+     o.push(bx(1.8,z+0.1,0.9,1.0,2+i*0.35,0.5,BLACK,'accent')); // hazard flashes
+     o.push(bx(5.4,z+0.1,0.9,1.0,2+i*0.35,0.5,BLACK,'accent'));
+     o.push(tube(8.9,(1+i*0.35)*1+1.1,0.62,z+0.2,2.2,DGREY,'light',{n:10}));
+     o.push(tube(8.9,(1+i*0.35)*1+1.1,0.75,z+2.0,0.7,ORG,'trim',{n:10}));
+     o.push(cyl(9.0,z+0.6,0.34,1+i*0.35+1.0,0.7,TYEL,'glass',{n:6}));  // tip lamp
+   });
+   o.push(bx(3.1,9.0,0.9,8.8,1,1,DGREY,'light'));               // two cross braces
+   o.push(bx(6.7,9.0,0.9,8.8,1,1,DGREY,'light'));
+   return o;})()},
+ // one enormous turbofan a side, slung under a stubby white wing
+ {name:'Turbofan',unlock:5,pal:PAL.airline,pieces:[
+   px([[0,9.2],[3.0,9.2],[5.2,11.4],[5.2,15.4],[0,15.4]],0,1.4,WHITE,'hull'),
+   bx(0,9.6,1.6,5.4,1.4,2,WHITE,'hull'),
+   bx(0.3,10.0,1.0,4.6,3.4,0.6,NAVY,'trim'),
+   bx(4.3,11.8,1.3,2.2,-1.6,3,DGREY,'light'),                   // pylon
+   tube(6.0,-3.0,2.7,8.4,7.8,WHITE,'hull',{n:16}),              // the fan case
+   tube(6.0,-3.0,2.8,15.2,1.0,NAVY,'accent',{n:16}),
+   tube(6.0,-3.0,2.8,8.2,0.8,NAVY,'accent',{n:16}),
+   tube(6.0,-3.0,1.95,8.0,0.7,DGREY,'light',{n:16}),            // intake lip
+   tube(6.0,-3.0,0.7,7.4,1.6,SILVER,'light',{n:8}),             // spinner
+   bx(5.4,10.6,1.2,1.2,2.6,0.6,NAVY,'trim'),
+ ]},
+ // four propellers a side on a twin boom. Deliberately silly.
+ {name:'Rotors',unlock:8,pal:PAL.jungle,pieces:(function(){
+   const o=[];
+   o.push(bx(0,10.0,9.0,1.4,1.2,1,GRN,'hull'));
+   o.push(bx(0,15.0,9.0,1.4,1.2,1,GRN,'hull'));
+   o.push(bx(1.4,10.6,1.1,4.8,1.2,1,GRN,'hull'));               // spar between booms
+   o.push(bx(6.6,10.6,1.1,4.8,1.2,1,GRN,'hull'));
+   [[2.2,10.0],[6.2,10.0],[2.2,15.0],[6.2,15.0]].forEach(([x,z])=>{
+     o.push(bx(x,z-0.1,1.6,1.6,2.2,2,LIME,'trim'));             // motor block
+     o.push(...prop(x+0.8,z+0.7,4.6,3.0,LIME,'accent'));
+   });
+   o.push(tube(0.9,3,0.3,9.4,1.2,SILVER,'light',{n:6}));
+   return o;})()},
  // alien tech: purple ring, lime beads, glowing inner nodes
  {name:'Halo',unlock:11,pieces:(function(){
    const o=[bx(0,11.6,2.4,3,1,3,PURP,'hull'),
@@ -1327,6 +1383,36 @@ const place=(ps,dx,dy)=>ps.map(p=>{
  return q;});
 // -1 everywhere: an empty baseplate until he builds something
 const ship={body:-1,wings:-1,cockpit:-1,engine:-1,tail:-1,defense:-1,pilot:-1,theme:0};
+/* Assign each option its dominant colour, then open four of everything at
+   level one instead of two, filling the rest in by level twelve. A kid should
+   have a real choice on the first screen, not two shapes and a lock. */
+const PART_PAL={
+ COCKPITS:{Classic:'blue',Bubble:'ice',Interceptor:'red','Twin Pod':'airline',
+           Saucer:'alien',Dragon:'jungle',Castle:'sand',Wizard:'candy'},
+ BODIES:  {Slim:'blue',Wide:'ice',Pods:'hazard',Core:'red',Keep:'sand'},
+ WINGS:   {Delta:'blue',Swept:'ice',Guardian:'hazard','Star-Four':'red',
+           Girder:'yellow',Turbofan:'airline',Rotors:'jungle',Halo:'alien',
+           Phoenix:'gold',Bat:'bat',Sails:'canvas'},
+ ENGINES: {Single:'blue',Twin:'ice',Ion:'alien',Pulse:'hazard',Quad:'red',Broom:'sand'},
+ TAILS:   {Fin:'blue','Twin Fin':'red',Sail:'canvas',Boom:'yellow',Spines:'alien',Banner:'gold'},
+ DEFENSES:{Blaster:'hazard',Twin:'yellow',Scatter:'red',Pulse:'alien',
+           Lance:'ice',Catapult:'sand'},
+};
+// four options everywhere at level one, everything open by twelve
+const UNLOCK_STEPS=[0,0,0,0,2,3,5,6,8,10,12,14];
+(function(){
+ const slots={COCKPITS,BODIES,WINGS,ENGINES,TAILS,DEFENSES};
+ for(const k in slots){
+   const list=slots[k],tbl=PART_PAL[k]||{};
+   list.forEach(o=>{const n=tbl[o.name];if(n&&PAL[n])o.pal=PAL[n];tintPart(o);});
+   list.map((o,i)=>i).sort((a,b)=>(list[a].unlock-list[b].unlock)||(a-b))
+       .forEach((k2,rank)=>{
+         list[k2].unlock=UNLOCK_STEPS[Math.min(rank,UNLOCK_STEPS.length-1)];});
+ }
+ THEMES.map((o,i)=>i).sort((a,b)=>(THEMES[a].unlock-THEMES[b].unlock)||(a-b))
+   .forEach((k2,rank)=>{THEMES[k2].unlock=UNLOCK_STEPS[Math.min(rank,UNLOCK_STEPS.length-1)];});
+})();
+
 function shipPieces(){
  const hull=ship.body>=0?BODIES[ship.body]:null;
  const hw=hull?hull.halfW:4,wy=hull?hull.wingY:2,
@@ -1418,7 +1504,7 @@ function shipFootprint(){
  if(f.hw<8)f.hw=8;
  // true projected bounds of pad + model, taken over every yaw the spin snaps
  // to, so one scale serves the whole rotation and nothing clips at 45 degrees
- const all=shipPieces().concat(plateOf(f));
+ const all=SHOW_PAD?shipPieces().concat(plateOf(f)):shipPieces();
  let ax=1e9,bx2=-1e9,ay=1e9,by=-1e9,mw=0,mh=0,sw=0;
  for(let i=0;i<24;i++){
   const yw=i/24*Math.PI*2,cs=Math.cos(yw),sn=Math.sin(yw);
@@ -1450,7 +1536,8 @@ function plateSprite(yaw,ss){
 /* =======================================================================
    SCENES
    ======================================================================= */
-const BUILD_ID='b16';
+const SHOW_PAD=false;   // the green baseplate. Flip to bring it back.
+const BUILD_ID='b18';
 const SCENE={BUILD:0,LOADOUT:1,FLY:2};
 let scene=SCENE.BUILD;
 let level=1;const MAX_LEVEL=20;
@@ -1659,11 +1746,24 @@ function drawBuild(){
    ctx.fillStyle='#7E97AB';ctx.font=Math.floor(Math.min(W,H)*0.032)+'px Trebuchet MS';
    ctx.fillText('start with a hull',W/2,ty+35);
    ctx.restore();}
- // baseplate, then the model floating a little above it
- const bp=plateSprite(buildYaw,bakeSS(sc));
- ctx.save();ctx.translate(cx,cy+24);ctx.scale(sc,sc);
- ctx.globalAlpha=0.95;ctx.drawImage(bp.cv,bp.ox,bp.oy,bp.w,bp.h);ctx.globalAlpha=1;ctx.restore();
- if(!empty){                                     // the model's own shadow on the plate
+ // The pad used to be a green baseplate. It ate most of the width, forced the
+ // model down to a fraction of the screen, and put a big flat slab of one
+ // colour behind everything. A soft pool of shadow says "sitting on a surface"
+ // just as well and costs nothing.
+ if(SHOW_PAD){
+   const bp=plateSprite(buildYaw,bakeSS(sc));
+   ctx.save();ctx.translate(cx,cy+24);ctx.scale(sc,sc);
+   ctx.globalAlpha=0.95;ctx.drawImage(bp.cv,bp.ox,bp.oy,bp.w,bp.h);ctx.globalAlpha=1;ctx.restore();
+ }else if(!empty){
+   const pr=fp.pw*sc*0.46;
+   const pg=ctx.createRadialGradient(cx,cy+34,pr*0.06,cx,cy+34,pr);
+   pg.addColorStop(0,'rgba(2,5,16,0.50)');
+   pg.addColorStop(0.45,'rgba(2,5,16,0.26)');
+   pg.addColorStop(1,'rgba(2,5,16,0)');
+   ctx.save();ctx.translate(cx,cy+34);ctx.scale(1,0.30);ctx.translate(-cx,-(cy+34));
+   ctx.fillStyle=pg;ctx.beginPath();ctx.arc(cx,cy+34,pr,0,7);ctx.fill();ctx.restore();
+ }
+ if(!empty){                                     // the model's own shadow
    const q=Math.round(buildYaw*24)/24,ss=bakeSS(sc);
    const sp=shipSprite(buildYaw,ss,true);
    if(!sp.empty){
