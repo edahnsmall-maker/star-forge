@@ -83,6 +83,14 @@ Each piece carries its real ABS colour and a *role*. The COLOR slot either
 leaves them alone ("Classic") or repaints by role, so you can keep the
 designed look or make a Frankenstein ship in one palette.
 
+## Resolution
+
+The build screen renders at up to 3x device pixels, since it is static and is
+where the detail is looked at; flight stays at 2x, since it needs the frames
+and the ship is small. A watchdog samples the frame rate and steps both caps
+down rather than dropping frames, so a slow device degrades in sharpness
+instead of in feel.
+
 ## Tools
 
 `tools/` holds the headless checks used to build this. They drive the real

@@ -25,9 +25,17 @@
 <script>
 const canvas=document.getElementById('c'),ctx=canvas.getContext('2d'),ui=document.getElementById('ui');
 let W,H,DPR;
-function resize(){DPR=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;
-  canvas.width=W*DPR;canvas.height=H*DPR;canvas.style.width=W+'px';canvas.style.height=H+'px';
+// The build screen is static and is where the detail matters, so it renders at
+// up to 3x device pixels. Flight needs 60fps and the ship is small, so it
+// stays at 2x. If frames slip, both step down.
+const DEV=()=>devicePixelRatio||1;
+let dprCap={build:3,fly:2};
+let wantDPR=Math.min(DEV(),dprCap.build);
+function resize(){W=innerWidth;H=innerHeight;DPR=wantDPR;
+  canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);
+  canvas.style.width=W+'px';canvas.style.height=H+'px';
   ctx.setTransform(DPR,0,0,DPR,0,0);}
+function applyDPR(d){if(Math.abs(d-DPR)<0.01)return;wantDPR=d;resize();}
 addEventListener('resize',resize);resize();
 
 /* ---------- sound ---------- */
@@ -1178,11 +1186,21 @@ function drawShip(c,x,y,s,t=0.6,yaw=0){
 const SHADOW=new Map();
 function shadowOf(sp,key){
  let sh=SHADOW.get(key);if(sh)return sh;
- const c=document.createElement('canvas');c.width=sp.cv.width;c.height=sp.cv.height;
+ const pad=Math.ceil(Math.max(sp.cv.width,sp.cv.height)*0.05)+6;
+ const c=document.createElement('canvas');
+ c.width=sp.cv.width+pad*2;c.height=sp.cv.height+pad*2;
  const g=c.getContext('2d');
- g.drawImage(sp.cv,0,0);
+ g.drawImage(sp.cv,pad,pad);
  g.globalCompositeOperation='source-in';g.fillStyle='#000';g.fillRect(0,0,c.width,c.height);
- sh=c;SHADOW.set(key,sh);
+ // soften it here, once, and at a third the resolution -- it is a blurred
+ // silhouette, so the per-frame blit has no business being full size
+ const q=1/3;
+ const bl=document.createElement('canvas');
+ bl.width=Math.max(1,Math.round(c.width*q));bl.height=Math.max(1,Math.round(c.height*q));
+ const bg=bl.getContext('2d');
+ bg.filter='blur('+Math.max(1.5,pad*0.4*q).toFixed(1)+'px)';
+ bg.drawImage(c,0,0,bl.width,bl.height);
+ bl.pad=pad;sh=bl;SHADOW.set(key,sh);
  if(SHADOW.size>60)SHADOW.clear();
  return sh;}
 const BASEPLATE=[bx(-15,-6,30,31,-1,1,'#4B9C34')];
@@ -1396,10 +1414,10 @@ function drawBuild(){
    if(!sp.empty){
      const shc=shadowOf(sp,'sh'+[ship.cockpit,ship.wings,ship.body,ship.engine,
        ship.tail,ship.defense,ship.pilot].join(',')+q.toFixed(3)+ss);
-     ctx.save();ctx.globalAlpha=0.34;
+     const pd=shc.pad/(sp.cv.width/sp.w);   // pad is in the sprite's own units
+     ctx.save();ctx.globalAlpha=0.32;
      ctx.translate(cx+10*sc,cy+30);ctx.transform(1,0,-0.45,0.30,0,0);ctx.scale(sc,sc);
-     ctx.filter='blur('+(2.2*sc).toFixed(1)+'px)';
-     ctx.drawImage(shc,sp.ox,sp.oy,sp.w,sp.h);
+     ctx.drawImage(shc,sp.ox-pd,sp.oy-pd,sp.w+pd*2,sp.h+pd*2);
      ctx.restore();
    }
  }
@@ -1884,7 +1902,19 @@ function drawBoss(b){
 addEventListener('pointerdown',()=>{if(scene===SCENE.FLY&&fly.over&&fly.overT>40)afterMission();});
 
 let acc=0,last=performance.now();const STEP=1000/60;
-function loop(now){requestAnimationFrame(loop);acc+=now-last;last=now;
+let slowRun=0,fpsN=0,fpsT=0;
+function loop(now){requestAnimationFrame(loop);
+ const dt=now-last;acc+=dt;last=now;
+ // watch the frame rate and drop resolution rather than drop frames
+ fpsN++;fpsT+=dt;
+ if(fpsT>900){
+   const fps=fpsN/(fpsT/1000);fpsN=0;fpsT=0;
+   if(fps<38){if(++slowRun>=2&&dprCap.build>1.5){
+     dprCap.build=Math.max(1.5,dprCap.build-0.5);
+     dprCap.fly=Math.max(1.5,dprCap.fly-0.5);slowRun=0;}}
+   else slowRun=0;
+ }
+ applyDPR(Math.min(DEV(),scene===SCENE.FLY?dprCap.fly:dprCap.build));
  let steps=Math.min(Math.floor(acc/STEP),5);
  while(steps-->0){if(scene===SCENE.FLY)updateFly();}
  acc%=STEP;
