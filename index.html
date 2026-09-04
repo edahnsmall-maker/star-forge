@@ -22,14 +22,35 @@
 <body>
 <canvas id="c"></canvas>
 <div id="ui"></div>
+<div id="err"></div>
 <script>
+// A thrown error used to leave a blank canvas and no way to tell why.
+(function(){
+ let shown=false;
+ window.__oops=function(what,e){
+  if(shown)return;shown=true;
+  const d=document.getElementById('err');if(!d)return;
+  d.style.cssText='position:fixed;inset:0;z-index:99;background:#0b1330;color:#fff;'+
+   'font:13px/1.5 -apple-system,system-ui,sans-serif;padding:22px;overflow:auto;'+
+   '-webkit-user-select:text;user-select:text';
+  d.textContent='Star Forge hit a problem in '+what+':\n\n'+
+   ((e&&(e.message||e))+'')+'\n\n'+((e&&e.stack)||'')+
+   '\n\nscreen '+innerWidth+'x'+innerHeight+' dpr '+(devicePixelRatio||1)+
+   '\n'+navigator.userAgent;
+ };
+ addEventListener('error',ev=>window.__oops('startup',ev.error||ev.message));
+})();
 const canvas=document.getElementById('c'),ctx=canvas.getContext('2d'),ui=document.getElementById('ui');
 let W,H,DPR;
 // The build screen is static and is where the detail matters, so it renders at
 // up to 3x device pixels. Flight needs 60fps and the ship is small, so it
 // stays at 2x. If frames slip, both step down.
 const DEV=()=>devicePixelRatio||1;
-let dprCap={build:3,fly:2};
+const HAS_FILTER=(function(){try{const t=document.createElement('canvas').getContext('2d');
+ t.filter='blur(1px)';return t.filter!=='none'&&t.filter!==undefined;}catch(e){return false;}})();
+// phones have far less canvas memory than a desktop; do not ask for 3x there
+const TOUCHY=(function(){try{return matchMedia('(pointer:coarse)').matches;}catch(e){return false;}})();
+let dprCap={build:TOUCHY?2:3,fly:2};
 let wantDPR=Math.min(DEV(),dprCap.build);
 function resize(){W=innerWidth;H=innerHeight;DPR=wantDPR;
   canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);
@@ -336,8 +357,10 @@ function applyAO(cv,pieces,TH,yaw,SS,ax,ay,pad){
  // with the sprite -- a 6x desktop bake costs the same as a 2x one
  const AOMAX=560,k=Math.min(0.5,AOMAX/Math.max(cv.width,cv.height));
  const dw=Math.max(2,Math.round(cv.width*k)),dh=Math.max(2,Math.round(cv.height*k));
- const dcv=document.createElement('canvas');dcv.width=dw;dcv.height=dh;
+ const dcv=applyAO.scratch||(applyAO.scratch=document.createElement('canvas'));
+ dcv.width=dw;dcv.height=dh;
  const dg=dcv.getContext('2d',{willReadFrequently:true});
+ dg.setTransform(1,0,0,1,0,0);dg.clearRect(0,0,dw,dh);
  dg.setTransform(SS*k,0,0,SS*k,0,0);dg.translate(-ax+pad,-ay+pad);
  drawPieces(dg,pieces,TH,yaw,true);
  let src;try{src=dg.getImageData(0,0,dw,dh).data;}catch(e){return;}
@@ -371,7 +394,7 @@ function applyAO(cv,pieces,TH,yaw,SS,ax,ay,pad){
 function sprite(key,pieces,TH,yaw,SS){
  let s=SPR.get(key);if(s)return s;
  s=makeSprite(pieces,TH,yaw,SS);SPR.set(key,s);
- if(SPR.size>150){SPR.clear();SPR.set(key,s);}
+ if(SPR.size>36){SPR.clear();SPR.set(key,s);}
  return s;
 }
 // mirror a set of pieces across the centreline
@@ -1203,10 +1226,10 @@ function shadowOf(sp,key){
  const bl=document.createElement('canvas');
  bl.width=Math.max(1,Math.round(c.width*q));bl.height=Math.max(1,Math.round(c.height*q));
  const bg=bl.getContext('2d');
- bg.filter='blur('+Math.max(1.5,pad*0.4*q).toFixed(1)+'px)';
+ if(HAS_FILTER)bg.filter='blur('+Math.max(1.5,pad*0.4*q).toFixed(1)+'px)';
  bg.drawImage(c,0,0,bl.width,bl.height);
  bl.pad=pad;sh=bl;SHADOW.set(key,sh);
- if(SHADOW.size>60)SHADOW.clear();
+ if(SHADOW.size>16)SHADOW.clear();
  return sh;}
 const BASEPLATE=[bx(-15,-6,30,31,-1,1,'#4B9C34')];
 function plateSprite(yaw,ss){const q=Math.round(yaw*24)/24;
@@ -1921,9 +1944,12 @@ function loop(now){requestAnimationFrame(loop);
  }
  applyDPR(Math.min(DEV(),scene===SCENE.FLY?dprCap.fly:dprCap.build));
  let steps=Math.min(Math.floor(acc/STEP),5);
- while(steps-->0){if(scene===SCENE.FLY)updateFly();}
+ try{while(steps-->0){if(scene===SCENE.FLY)updateFly();}}
+ catch(e){window.__oops('the game loop',e);}
  acc%=STEP;
- if(scene===SCENE.FLY)drawFly();else drawBuild();
+ try{
+   if(scene===SCENE.FLY)drawFly();else drawBuild();
+ }catch(e){window.__oops(scene===SCENE.FLY?'flight':'the build screen',e);}
 }
 buildUI();requestAnimationFrame(loop);
 </script>
