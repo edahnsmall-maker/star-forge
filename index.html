@@ -115,6 +115,28 @@ const FILL=nrm([0.55,0.22,-0.55]);  // cool bounce filling the shadow side
 const VIEW=nrm([0,TILT,RISE]);      // toward the camera
 const HALF=nrm([KEY[0]+VIEW[0],KEY[1]+VIEW[1],KEY[2]+VIEW[2]]);
 
+/* A tiny studio to mirror into the plastic: a big soft box overhead, a mid
+   horizon, a dark floor. On a FLAT face under a directional light the Phong
+   term is constant -- it can only tint the colour, which is why gloss painted
+   that way reads as "a lighter shade of blue". What actually makes ABS look
+   glossy in a photo is that it reflects the room, weighted by Fresnel. */
+const ENV_TOP=[250,252,255], ENV_MID=[126,150,184], ENV_BOT=[24,32,50];
+const GLOSS=0.82;
+function envAt(ry){
+ const t=ry<-1?-1:(ry>1?1:ry);
+ if(t>=0){const k=Math.pow(t,0.55);
+  return[ENV_MID[0]+(ENV_TOP[0]-ENV_MID[0])*k,
+         ENV_MID[1]+(ENV_TOP[1]-ENV_MID[1])*k,
+         ENV_MID[2]+(ENV_TOP[2]-ENV_MID[2])*k];}
+ const k=Math.pow(-t,0.7);
+ return[ENV_MID[0]+(ENV_BOT[0]-ENV_MID[0])*k,
+        ENV_MID[1]+(ENV_BOT[1]-ENV_MID[1])*k,
+        ENV_MID[2]+(ENV_BOT[2]-ENV_MID[2])*k];
+}
+const _envc=new Map();
+const envCss=ry=>{const q=Math.round(ry*64);let v=_envc.get(q);if(v)return v;
+ const e=envAt(q/64);v='rgb('+(e[0]|0)+','+(e[1]|0)+','+(e[2]|0)+')';_envc.set(q,v);return v;};
+
 const rect=(x,z,w,d)=>[[x,z],[x+w,z],[x+w,z+d],[x,z+d]];
 const px=(pts,y,h,c,r,o)=>Object.assign({pts,y,h,c,r},o);
 const bx=(x,z,w,d,y,h,c,r,o)=>px(rect(x,z,w,d),y,h,c,r,o);
@@ -167,16 +189,25 @@ function faceLit(n,cs,sn){
  // ABS is glossy: a tight highlight where the face turns the light at the eye
  const h=Math.max(0,rx*HALF[0]+ry*HALF[1]+rz*HALF[2]);
  const h2=h*h,h4=h2*h2,h8=h4*h4;
+ // Two lobes. The BROAD one is the soft box every LEGO photo is lit with --
+ // h^16 only fires on faces pointed exactly at the light, which left the top
+ // of every brick matte. The tight one is the glint off a chamfer or a curve.
+ const broad=h4*h, tight=h8*h8*h8;
  // how edge-on the face is to the eye. Plastic goes bright and milky at a
  // grazing angle -- that Fresnel roll-off is most of what says "shiny".
  const dot=(-TILT*ry-RISE*rz)/1.087;
  const c1=1-Math.min(1,Math.abs(dot));
  const c5=c1*c1*c1*c1*c1;
  const fres=0.04+0.96*c5;             // Schlick, F0 = 0.04 for a dielectric
+ // mirror direction: R = 2(N.V)N - V. Only its height matters to the studio.
+ const nv=ry*VIEW[1]+rz*VIEW[2];
+ const rry=2*nv*ry-VIEW[1];
  return{vis:dot<0,k,
-        s:-0.34+0.52*k+0.13*f+0.12*h4,
-        spec:h8*h8*0.95+h8*0.30,      // a tight hot core riding a broader sheen
-        fres:fres*0.55};
+        s:-0.47+0.62*k+0.12*f+0.10*h4,
+        spec:broad*0.50+tight*0.85,   // soft box, plus a hot core on the bevels
+        broad,
+        fres,                          // raw Schlick, for the reflection lerp
+        ry:rry};
 }
 const prj=(v,cs,sn)=>[v[0]*cs+v[2]*sn,(-v[0]*sn+v[2]*cs)*TILT-v[1]*RISE];
 const bbox=pts=>{let a=1e9,b=1e9,c=-1e9,d=-1e9;
@@ -213,7 +244,7 @@ function drawPieces(c,pieces,TH,yaw,depthPass){
      let d=0;for(const k of f.i)d+=depth(g.V[k]);
      d/=f.i.length;
      if(f.cap&&d>capD)capD=d;
-     items.push({d,f,g,col,clear,p});
+     items.push({d,f,g,col,clear,p,L});
    }
    if(p.studs!==false&&!p.hs&&(p.ts===undefined||p.ts===1)&&(p.ax||'y')==='y'){
      const bb=p._bb||(p._bb=bbox(p.pts)),top=(p.y+p.h)*PLATE-CY;
@@ -231,6 +262,14 @@ function drawPieces(c,pieces,TH,yaw,depthPass){
  items.sort((a,b)=>a.d-b.d);
  c.lineJoin='round';
  const sr=STUD*0.3,sh=STUD*0.23;
+ // one lighting solve for every stud: they all share the same two normals
+ const _lt=faceLit([0,1,0],cs,sn), _ls=faceLit(nrm([-LDIR[0],0,LDIR[1]]),cs,sn);
+ const ST={hi:Math.min(0.62,_lt.s+0.46+_lt.spec*0.5),
+           mid:_lt.s+0.30, lo:_lt.s+0.06,
+           band:Math.min(0.34,0.12+_ls.spec*0.9),
+           a0:Math.min(0.46,0.12+_lt.spec*1.05).toFixed(3),
+           a1:Math.min(0.14,0.03+_lt.spec*0.30).toFixed(3),
+           ring:Math.min(0.30,0.11+_lt.spec*0.60).toFixed(3)};
  if(depthPass){                       // flat greys, nearest white -- an AO input
    const lo=items.length?items[0].d:0,hi=items.length?items[items.length-1].d:1;
    const span=Math.max(1e-6,hi-lo);
@@ -256,28 +295,47 @@ function drawPieces(c,pieces,TH,yaw,depthPass){
    if(it.clear)c.globalAlpha=0.62;
    if(it.stud){
      const q=prj(it.stud,cs,sn),yt=q[1]-RISE*sh;
+     // A stud is a tiny glossy cylinder and there are hundreds of them, so
+     // whatever they do decides whether the whole model reads as plastic.
+     // Wall: a narrow specular band where the cylinder turns the light at the
+     // eye, and a Fresnel rim on the far silhouette where it goes edge-on.
      const wall=c.createLinearGradient(q[0]-sr,0,q[0]+sr,0);
-     wall.addColorStop(0,shade(it.col,-0.16));
-     wall.addColorStop(0.35,shade(it.col,0.10));
-     wall.addColorStop(1,shade(it.col,-0.24));
+     wall.addColorStop(0,shade(it.col,-0.30));
+     wall.addColorStop(0.16,shade(it.col,-0.06));
+     wall.addColorStop(0.30,shade(it.col,ST.band));
+     wall.addColorStop(0.44,shade(it.col,0.02));
+     wall.addColorStop(0.86,shade(it.col,-0.32));
+     wall.addColorStop(1,shade(it.col,-0.10));
      c.fillStyle=wall;
      c.beginPath();c.ellipse(q[0],q[1],sr,sr*TILT,0,0,7);c.fill();
      c.fillRect(q[0]-sr,yt,sr*2,q[1]-yt);
-     const top=c.createRadialGradient(q[0]-sr*0.38,yt-sr*0.26,sr*0.06,q[0],yt,sr*1.2);
-     top.addColorStop(0,shade(it.col,0.74));
-     top.addColorStop(0.42,shade(it.col,0.40));
-     top.addColorStop(1,shade(it.col,0.16));
-     c.fillStyle=top;
-     c.beginPath();c.ellipse(q[0],yt,sr,sr*TILT,0,0,7);c.fill();
-     c.strokeStyle=shade(it.col,-0.28);c.lineWidth=0.6;c.stroke();
+     // Top: mostly its own colour with a small hard crescent, not a white
+     // wash. The crescent sits where the light is, so it sweeps as it spins.
+     c.beginPath();c.ellipse(q[0],yt,sr,sr*TILT,0,0,7);
+     const top=c.createRadialGradient(q[0]+LDIR[0]*sr*0.42,yt+LDIR[1]*sr*0.42,sr*0.05,
+                                      q[0],yt,sr*1.25);
+     top.addColorStop(0,shade(it.col,ST.hi));
+     top.addColorStop(0.40,shade(it.col,ST.mid));
+     top.addColorStop(1,shade(it.col,ST.lo));
+     c.fillStyle=top;c.fill();
+     const cg=c.createRadialGradient(q[0]+LDIR[0]*sr*0.44,yt+LDIR[1]*sr*0.40,sr*0.04,
+                                     q[0]+LDIR[0]*sr*0.30,yt+LDIR[1]*sr*0.28,sr*0.85);
+     cg.addColorStop(0,'rgba(255,255,255,'+ST.a0+')');
+     cg.addColorStop(0.42,'rgba(255,254,248,'+ST.a1+')');
+     cg.addColorStop(1,'rgba(255,255,255,0)');
+     c.globalCompositeOperation='lighter';c.fillStyle=cg;c.fill();
+     c.globalCompositeOperation='source-over';
+     c.strokeStyle=shade(it.col,-0.34);c.lineWidth=0.6;c.stroke();
+     // the moulded ring, and the hard glint riding its lit shoulder
      if(sr>2.2){
-       c.strokeStyle=shade(it.col,-0.13);c.lineWidth=Math.max(0.35,sr*0.11);
+       c.strokeStyle=shade(it.col,-0.16);c.lineWidth=Math.max(0.35,sr*0.11);
        c.beginPath();c.ellipse(q[0],yt-sr*0.05,sr*0.52,sr*0.52*TILT,0,0,7);c.stroke();
-       c.strokeStyle='rgba(255,255,255,0.20)';c.lineWidth=Math.max(0.3,sr*0.08);
-       c.beginPath();c.ellipse(q[0],yt-sr*0.12,sr*0.5,sr*0.5*TILT,0,3.6,5.9);c.stroke();
+       c.strokeStyle='rgba(255,255,255,'+ST.ring+')';c.lineWidth=Math.max(0.3,sr*0.09);
+       const a=Math.atan2(LDIR[1],LDIR[0]);
+       c.beginPath();c.ellipse(q[0],yt-sr*0.10,sr*0.5,sr*0.5*TILT,0,a-1.25,a+1.25);c.stroke();
      }
    }else{
-     const f=it.f,g=it.g,L=faceLit(f.n,cs,sn);
+     const f=it.f,g=it.g,L=it.L;
      let ya=1e9,yb=-1e9,xa=1e9,xb=-1e9;
      c.beginPath();
      for(let i=0;i<f.i.length;i++){const q=prj(g.V[f.i[i]],cs,sn);
@@ -291,36 +349,60 @@ function drawPieces(c,pieces,TH,yaw,depthPass){
      const gs=Math.max(0.22,Math.min(1,2400/Math.max(1,area)));
      if(area>36){
        const gr=c.createLinearGradient(0,ya,0,yb);
-       gr.addColorStop(0,shade(it.col,L.s+(0.17+L.fres)*gs+L.spec));
-       gr.addColorStop(0.32,shade(it.col,L.s+(0.04+L.fres*0.5)*gs+L.spec*0.45));
+       gr.addColorStop(0,shade(it.col,L.s+0.15*gs));
+       gr.addColorStop(0.32,shade(it.col,L.s+0.04*gs));
        gr.addColorStop(0.82,shade(it.col,L.s-0.07*gs));
        gr.addColorStop(1,shade(it.col,L.s+0.03*gs));   // bounce off the surface below
        c.fillStyle=gr;
-     }else c.fillStyle=shade(it.col,L.s+L.spec*0.5+L.fres*0.6);
+     }else c.fillStyle=shade(it.col,L.s);
      c.fill();
-     // a cool sky reflection on upward faces, a warm bounce underneath
-     if(f.n[1]>0.25||f.n[1]<-0.2){
-       c.save();c.clip();c.globalCompositeOperation='lighter';
-       c.globalAlpha=f.n[1]>0?0.055:0.035;
-       c.fillStyle=f.n[1]>0?'#9FD8FF':'#FFB870';
-       c.fillRect(xa,ya,aw,ah);c.restore();
+     // The reflection. out = base*(1-F) + studio*F -- a lerp, not an add, so a
+     // white brick can't blow out and a dark one still picks up a real mirror.
+     const F=Math.min(0.94,L.fres*GLOSS*(it.clear?1.25:1));
+     if(F>0.015){
+       c.globalAlpha=F;
+       if(area>36){
+         const eg=c.createLinearGradient(0,ya,0,yb);
+         eg.addColorStop(0,envCss(L.ry+0.36));
+         eg.addColorStop(0.55,envCss(L.ry));
+         eg.addColorStop(1,envCss(L.ry-0.30));
+         c.fillStyle=eg;
+       }else c.fillStyle=envCss(L.ry);
+       c.fill();c.globalAlpha=it.clear?0.62:1;
      }
-     // the glossy hot spot, placed where the light actually lands
-     if(L.spec>0.10&&area>60&&area<9000){
+     // The soft box reflected in the surface. Added as white, not mixed into
+     // the colour: a highlight on a dark blue brick goes near-white in a photo,
+     // it does not go pale blue. Graded so the light reads as being overhead.
+     if(L.spec>0.012){
+       const a0=Math.min(0.34,L.spec*0.80),a1=Math.min(0.14,L.spec*0.26);
+       const sg=c.createLinearGradient(0,ya,0,yb);
+       sg.addColorStop(0,'rgba(255,253,246,'+a0.toFixed(3)+')');
+       sg.addColorStop(0.45,'rgba(255,252,244,'+((a0*0.42+a1*0.58)).toFixed(3)+')');
+       sg.addColorStop(1,'rgba(238,244,255,'+a1.toFixed(3)+')');
+       c.globalCompositeOperation='lighter';c.fillStyle=sg;c.fill();
+       c.globalCompositeOperation='source-over';
+     }
+     // and its hot core, where the light lands square on
+     if(L.spec>0.20&&area>60&&area<9000){
        const hx=xa+aw*(0.5+LDIR[0]*0.30),hy=ya+ah*(0.5+LDIR[1]*0.30),
              hr=Math.min(Math.max(aw,ah)*0.5,46);
-       c.save();c.clip();c.globalCompositeOperation='lighter';
        const hg=c.createRadialGradient(hx,hy,hr*0.05,hx,hy,hr);
-       hg.addColorStop(0,'rgba(255,255,255,'+Math.min(0.52,L.spec*0.6).toFixed(3)+')');
-       hg.addColorStop(0.55,'rgba(255,255,255,'+Math.min(0.16,L.spec*0.18).toFixed(3)+')');
+       hg.addColorStop(0,'rgba(255,255,255,'+Math.min(0.30,L.spec*0.30).toFixed(3)+')');
+       hg.addColorStop(0.55,'rgba(255,255,255,'+Math.min(0.14,L.spec*0.13).toFixed(3)+')');
        hg.addColorStop(1,'rgba(255,255,255,0)');
-       c.fillStyle=hg;c.fillRect(xa,ya,aw,ah);c.restore();
+       c.globalCompositeOperation='lighter';c.fillStyle=hg;c.fill();
+       c.globalCompositeOperation='source-over';
      }
      if(it.clear){c.strokeStyle=shade(it.col,0.3);c.lineWidth=0.7;c.stroke();}
      else if(!(it.p.smooth&&f.side)){
-       // the chamfer, lit by how much this face faces the key light
+       // the chamfer, lit by how much this face faces the key light, then
+       // pushed toward the studio because a bevel is always near-grazing
+       const cf=Math.min(0.80,(0.30+0.70*L.fres)*GLOSS);
        c.strokeStyle=shade(it.col,-0.40+1.02*L.k+L.spec*0.4);
-       c.lineWidth=f.cap?0.9:0.75;c.stroke();}
+       c.lineWidth=f.cap?0.9:0.75;c.stroke();
+       c.globalAlpha=cf;
+       c.strokeStyle=envCss(Math.min(1,L.ry+0.45));
+       c.lineWidth=f.cap?0.7:0.55;c.stroke();c.globalAlpha=1;}
    }
    if(it.clear)c.globalAlpha=1;
  }
@@ -1231,14 +1313,60 @@ function shadowOf(sp,key){
  bl.pad=pad;sh=bl;SHADOW.set(key,sh);
  if(SHADOW.size>16)SHADOW.clear();
  return sh;}
-const BASEPLATE=[bx(-15,-6,30,31,-1,1,'#4B9C34')];
-function plateSprite(yaw,ss){const q=Math.round(yaw*24)/24;
- return sprite('bp_'+q.toFixed(3)+'_'+ss,BASEPLATE,null,q,ss);}
+/* The pad frames whatever is standing on it. A fixed 30x31 plate dwarfed the
+   small ships, which pushed the whole model down to a fifth of the screen --
+   at that size none of the brickwork is legible however well it is lit. */
+const _fpc=new Map(), _bpc=new Map();
+function shipFootprint(){
+ const key=[ship.cockpit,ship.wings,ship.body,ship.engine,ship.tail].join(',');
+ let f=_fpc.get(key);if(f)return f;
+ let hw=6,z0=1e9,z1=-1e9,top=6;
+ for(const pc of shipPieces())for(const v of pieceGeom(pc).V){
+  const x=Math.abs(v[0])/STUD, z=(v[2]+CZ)/STUD, y=(v[1]+CY)/PLATE;
+  if(x>hw)hw=x; if(z<z0)z0=z; if(z>z1)z1=z; if(y>top)top=y;
+ }
+ if(z0>z1){z0=0;z1=12;}
+ // wings are allowed to hang off the pad -- they do on a real display stand,
+ // and a pad sized to the full wingspan is what was shrinking the model
+ f={hw:Math.min(Math.ceil(hw)+1,13), z0:Math.floor(z0)-2, z1:Math.ceil(z1)+2, top};
+ if(f.z1-f.z0<14){const c=(f.z0+f.z1)/2;f.z0=Math.round(c-7);f.z1=f.z0+14;}
+ if(f.z1-f.z0>30){const c=(f.z0+f.z1)/2;f.z0=Math.round(c-15);f.z1=f.z0+30;}
+ if(f.hw<8)f.hw=8;
+ // true projected bounds of pad + model, taken over every yaw the spin snaps
+ // to, so one scale serves the whole rotation and nothing clips at 45 degrees
+ const all=shipPieces().concat(plateOf(f));
+ let ax=1e9,bx2=-1e9,ay=1e9,by=-1e9,mw=0,mh=0,sw=0;
+ for(let i=0;i<24;i++){
+  const yw=i/24*Math.PI*2,cs=Math.cos(yw),sn=Math.sin(yw);
+  let a=1e9,b=-1e9,cc=1e9,d=-1e9;
+  for(const pc of all)for(const v of pieceGeom(pc).V){
+   const q=prj(v,cs,sn);
+   if(q[0]<a)a=q[0];if(q[0]>b)b=q[0];if(q[1]<cc)cc=q[1];if(q[1]>d)d=q[1];}
+  if(a<ax)ax=a;if(b>bx2)bx2=b;if(cc<ay)ay=cc;if(d>by)by=d;
+  if(b-a>mw)mw=b-a; if(d-cc>mh)mh=d-cc; sw+=b-a;
+ }
+ f.ax=ax;f.bx=bx2;f.ay=ay;f.by=by;
+ // width from the widest single angle, not the union of all of them -- and the
+ // pad's corners may bleed a little at 45 degrees rather than shrink the model
+ f.pw=Math.max(1,Math.min(mw,sw/24*1.10));
+ // height must use the union: the model is centred once, and different angles
+ // sit at different heights, so the tallest single angle does not bound them
+ f.ph=Math.max(1,by-ay);
+ _fpc.set(key,f);return f;
+}
+function plateOf(f){
+ const k='bp_'+f.hw+'_'+f.z0+'_'+f.z1;
+ let pl=_bpc.get(k);
+ if(!pl){pl=[bx(-f.hw,f.z0,f.hw*2,f.z1-f.z0,-1,1,'#4B9C34')];_bpc.set(k,pl);}
+ return pl;}
+function plateSprite(yaw,ss){
+ const f=shipFootprint(),q=Math.round(yaw*24)/24;
+ return sprite('bp_'+f.hw+'_'+f.z0+'_'+f.z1+'_'+q.toFixed(3)+'_'+ss,plateOf(f),null,q,ss);}
 
 /* =======================================================================
    SCENES
    ======================================================================= */
-const BUILD_ID='b13';
+const BUILD_ID='b14';
 const SCENE={BUILD:0,LOADOUT:1,FLY:2};
 let scene=SCENE.BUILD;
 let level=1;const MAX_LEVEL=20;
@@ -1423,16 +1551,29 @@ function drawBuild(){
    ctx.beginPath();ctx.arc(s.x,s.y,s.s*0.7,0,7);ctx.fill();}
  bob+=0.04;
  if(!dragging)buildYaw+=yawSpin;
- const cx=W/2,cy=H*0.5,sc=Math.min(W,H)/360*0.92;
+ // fit pad + model to the free band, instead of a fixed fraction of the screen
+ const fp=shipFootprint();
+ const bandTop=176,bandBot=H-158,band=Math.max(120,bandBot-bandTop);
  const empty=!shipPieces().length;
+ // an empty pad is scenery, not the subject -- left to fill the band it swamps
+ // the screen and swallows the caption
+ const cap=empty?1.35:2.9;
+ // quantised so a part swap cannot spray the sprite cache with near-identical scales
+ const sc=Math.max(0.7,Math.min(cap,
+   Math.round(Math.min(W*0.94/fp.pw,band*0.92/fp.ph)*20)/20));
+ // the model anchor is offset so the composition's own centre lands in the
+ // middle of the band; captions stay on the screen's centre line
+ const cx=W/2-(fp.ax+fp.bx)*0.5*sc,
+       cy=(empty?bandTop+band*0.62:bandTop+band*0.5)-(fp.ay+fp.by)*0.5*sc;
  if(empty){                                      // an empty pad, waiting
+   const ty=bandTop+40;
    ctx.save();ctx.textAlign='center';
    ctx.fillStyle='#1B2A34';
    ctx.font='bold '+Math.floor(Math.min(W,H)*0.052)+'px Trebuchet MS';
-   ctx.fillText('BUILD YOUR SHIP',cx,cy-165+3);
-   ctx.fillStyle='#B9CFE0';ctx.fillText('BUILD YOUR SHIP',cx,cy-165);
+   ctx.fillText('BUILD YOUR SHIP',W/2,ty+3);
+   ctx.fillStyle='#B9CFE0';ctx.fillText('BUILD YOUR SHIP',W/2,ty);
    ctx.fillStyle='#7E97AB';ctx.font=Math.floor(Math.min(W,H)*0.032)+'px Trebuchet MS';
-   ctx.fillText('start with a hull',cx,cy-130);
+   ctx.fillText('start with a hull',W/2,ty+35);
    ctx.restore();}
  // baseplate, then the model floating a little above it
  const bp=plateSprite(buildYaw,bakeSS(sc));

@@ -37,14 +37,35 @@ outward and shifted onto whatever edge they find — so a wing sits flush on a
 narrow hull and a wide one alike. Defence and tails mount the same way, off a
 `defY`/`defZ` and `tailY`/`tailZ` the hull declares.
 
-**Lighting is baked, not live.** A key light, a cool fill, a tight specular
-lobe over a broader sheen, and a Fresnel term that brightens faces seen at a
-grazing angle -- that roll-off is most of what reads as glossy plastic. A
-small radial hot spot sits on any face catching the light. Faces
-above a size threshold fill with a vertical gradient; studs get a gradient
-wall and an off-centre radial top. All of it is computed once per viewing
-angle into a cached sprite, so the runtime cost of a detailed ship is one
-blit.
+**The plastic reflects a room.** A key light and a cool fill give the
+diffuse; on top of that every surface mirrors a small analytic studio -- a
+soft box overhead, a mid horizon, a dark floor -- sampled along the mirror
+direction and mixed in by Schlick Fresnel. It has to be a *mix*, not an add,
+so a white brick cannot blow out and a dark one still picks up a real
+reflection. This matters because under a directional light an orthographic
+camera sees a *constant* specular across any flat face, so a Phong lobe alone
+can only tint the colour: gloss done that way reads as "a lighter shade of
+blue" rather than as shine.
+
+The soft box is a broad lobe, not a pinpoint. It was `h^16`, which only fires
+on faces pointed almost exactly at the light, leaving the top of every brick
+matte -- the most visible surfaces in the whole model. Highlights are added
+as white rather than mixed into the colour, because a highlight on a dark
+blue brick goes near-white in a photograph.
+
+Chamfers carry the loudest cue. A bevel is always closer to grazing than the
+face it borders, so it mirrors the studio hard; that hairline along every top
+edge is most of what says "injection moulded".
+
+**Studs are lit properly, because there are hundreds of them.** They used to
+be painted with hardcoded flat shades that never touched the lighting model,
+which left the whole ship matte however well the faces were lit. Each is now
+a small glossy cylinder: a narrow specular band and a Fresnel rim on the
+wall, a hard crescent on the top placed where the light actually is, so it
+sweeps as the model spins.
+
+All of it is computed once per viewing angle into a cached sprite, so the
+runtime cost of a detailed ship is one blit.
 
 **Contact shadows are baked in.** Each sprite is rendered a second time as
 flat depth, and every pixel is darkened by how much of the hemisphere around
@@ -82,6 +103,23 @@ Newly unlocked options are badged NEW until he looks at them.
 Each piece carries its real ABS colour and a *role*. The COLOR slot either
 leaves them alone ("Classic") or repaints by role, so you can keep the
 designed look or make a Frankenstein ship in one palette.
+
+## The model is sized to the screen
+
+The pad and the ship are fitted to the band between the slot tabs and the
+controls, at a scale measured from their real projected bounds rather than a
+fixed fraction of the screen. Before this the model sat at about a fifth of
+the display with a third of the screen empty above it, and at that size none
+of the brickwork was legible however well it was lit -- every lighting change
+was invisible in the place it was meant to show.
+
+Two details make it work. The pad tracks the ship's own footprint instead of
+being a fixed 30x31 plate, and wings are allowed to hang off it the way they
+do on a real display stand -- a pad sized to the full wingspan is what was
+shrinking everything. And the scale is taken once per ship over all 24 yaw
+steps: width from the widest single angle (its corners may bleed slightly at
+45 degrees rather than shrink the model), height from the union, so the model
+does not grow and shrink as it spins. Typical ships come out 35-125% larger.
 
 ## Resolution
 
