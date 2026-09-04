@@ -37,8 +37,10 @@ outward and shifted onto whatever edge they find — so a wing sits flush on a
 narrow hull and a wide one alike. Defence and tails mount the same way, off a
 `defY`/`defZ` and `tailY`/`tailZ` the hull declares.
 
-**Lighting is baked, not live.** A key light, a cool fill, and a specular
-lobe off the half-vector, evaluated per face against its own normal. Faces
+**Lighting is baked, not live.** A key light, a cool fill, a tight specular
+lobe over a broader sheen, and a Fresnel term that brightens faces seen at a
+grazing angle -- that roll-off is most of what reads as glossy plastic. A
+small radial hot spot sits on any face catching the light. Faces
 above a size threshold fill with a vertical gradient; studs get a gradient
 wall and an off-centre radial top. All of it is computed once per viewing
 angle into a cached sprite, so the runtime cost of a detailed ship is one

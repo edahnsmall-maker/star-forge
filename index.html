@@ -135,10 +135,15 @@ function faceLit(n,cs,sn){
  const f=Math.max(0,rx*FILL[0]+ry*FILL[1]+rz*FILL[2]);
  // ABS is glossy: a tight highlight where the face turns the light at the eye
  const h=Math.max(0,rx*HALF[0]+ry*HALF[1]+rz*HALF[2]);
- const h2=h*h,h4=h2*h2;
- return{vis:(-TILT*ry-RISE*rz)<0,
-        s:-0.32+0.50*k+0.14*f+0.10*h4,
-        spec:h4*h4*0.62};
+ const h2=h*h,h4=h2*h2,h8=h4*h4;
+ // how edge-on the face is to the eye. Plastic goes bright and milky at a
+ // grazing angle -- that Fresnel roll-off is most of what says "shiny".
+ const dot=(-TILT*ry-RISE*rz)/1.087;
+ const fres=Math.pow(1-Math.min(1,Math.abs(dot)),3);
+ return{vis:dot<0,
+        s:-0.34+0.52*k+0.13*f+0.12*h4,
+        spec:h8*h8*0.95+h8*0.30,      // a tight hot core riding a broader sheen
+        fres:fres*0.26};
 }
 const prj=(v,cs,sn)=>[v[0]*cs+v[2]*sn,(-v[0]*sn+v[2]*cs)*TILT-v[1]*RISE];
 const bbox=pts=>{let a=1e9,b=1e9,c=-1e9,d=-1e9;
@@ -165,11 +170,14 @@ function drawPieces(c,pieces,TH,yaw){
    const g=pieceGeom(p);
    const col=(TH&&!TH.natural&&p.r&&TH[p.r])||p.c;
    const clear=p.r==='glass';
+   let capD=-1e9;
    for(const f of g.F){
      const L=faceLit(f.n,cs,sn);
      if(!L.vis)continue;
      let d=0;for(const k of f.i)d+=depth(g.V[k]);
-     items.push({d:d/f.i.length,f,g,col,clear,p});
+     d/=f.i.length;
+     if(f.cap&&d>capD)capD=d;
+     items.push({d,f,g,col,clear,p});
    }
    if(p.studs!==false&&!p.hs&&(p.ts===undefined||p.ts===1)&&(p.ax||'y')==='y'){
      const bb=p._bb||(p._bb=bbox(p.pts)),top=(p.y+p.h)*PLATE-CY;
@@ -178,7 +186,9 @@ function drawPieces(c,pieces,TH,yaw){
        if(!inPoly(p.pts,sx,sz))continue;
        if(studCovered(pieces,p,sx,sz))continue;
        const v=[sx*STUD,top,sz*STUD-CZ];
-       items.push({d:depth(v)+0.01,stud:v,col,clear:false,p});
+       // a stud must never sort behind the face it stands on -- on a big flat
+       // piece the face's own centroid depth is deeper than half its studs
+       items.push({d:Math.max(depth(v),capD)+0.02,stud:v,col,clear:false,p});
      }
    }
  }
@@ -196,9 +206,10 @@ function drawPieces(c,pieces,TH,yaw){
      c.fillStyle=wall;
      c.beginPath();c.ellipse(q[0],q[1],sr,sr*TILT,0,0,7);c.fill();
      c.fillRect(q[0]-sr,yt,sr*2,q[1]-yt);
-     const top=c.createRadialGradient(q[0]-sr*0.35,yt-sr*0.2,sr*0.1,q[0],yt,sr*1.15);
-     top.addColorStop(0,shade(it.col,0.52));
-     top.addColorStop(1,shade(it.col,0.20));
+     const top=c.createRadialGradient(q[0]-sr*0.38,yt-sr*0.26,sr*0.06,q[0],yt,sr*1.2);
+     top.addColorStop(0,shade(it.col,0.74));
+     top.addColorStop(0.42,shade(it.col,0.40));
+     top.addColorStop(1,shade(it.col,0.16));
      c.fillStyle=top;
      c.beginPath();c.ellipse(q[0],yt,sr,sr*TILT,0,0,7);c.fill();
      c.strokeStyle=shade(it.col,-0.28);c.lineWidth=0.6;c.stroke();
@@ -211,14 +222,29 @@ function drawPieces(c,pieces,TH,yaw){
        if(q[0]<xa)xa=q[0];if(q[0]>xb)xb=q[0];
        i?c.lineTo(q[0],q[1]):c.moveTo(q[0],q[1]);}
      c.closePath();
-     if((xb-xa)*(yb-ya)>36){
+     const aw=xb-xa,ah=yb-ya,area=aw*ah;
+     // a small face reads as a bevel catching the environment; a big flat one
+     // should stay flat, or its own gradient swallows the studs on top of it
+     const gs=Math.max(0.22,Math.min(1,2400/Math.max(1,area)));
+     if(area>36){
        const gr=c.createLinearGradient(0,ya,0,yb);
-       gr.addColorStop(0,shade(it.col,L.s+0.11+L.spec));
-       gr.addColorStop(0.55,shade(it.col,L.s+L.spec*0.35));
-       gr.addColorStop(1,shade(it.col,L.s-0.07));
+       gr.addColorStop(0,shade(it.col,L.s+(0.17+L.fres)*gs+L.spec));
+       gr.addColorStop(0.32,shade(it.col,L.s+(0.04+L.fres*0.5)*gs+L.spec*0.45));
+       gr.addColorStop(0.82,shade(it.col,L.s-0.07*gs));
+       gr.addColorStop(1,shade(it.col,L.s+0.03*gs));   // bounce off the surface below
        c.fillStyle=gr;
-     }else c.fillStyle=shade(it.col,L.s+L.spec*0.5);
+     }else c.fillStyle=shade(it.col,L.s+L.spec*0.5+L.fres*0.6);
      c.fill();
+     // the glossy hot spot: a small bright reflection where the light lands
+     if(L.spec>0.10&&area>60&&area<9000){
+       const hx=xa+aw*0.34,hy=ya+ah*0.26,hr=Math.min(Math.max(aw,ah)*0.5,46);
+       c.save();c.clip();c.globalCompositeOperation='lighter';
+       const hg=c.createRadialGradient(hx,hy,hr*0.05,hx,hy,hr);
+       hg.addColorStop(0,'rgba(255,255,255,'+Math.min(0.52,L.spec*0.6).toFixed(3)+')');
+       hg.addColorStop(0.55,'rgba(255,255,255,'+Math.min(0.16,L.spec*0.18).toFixed(3)+')');
+       hg.addColorStop(1,'rgba(255,255,255,0)');
+       c.fillStyle=hg;c.fillRect(xa,ya,aw,ah);c.restore();
+     }
      if(f.cap&&!it.clear){
        c.strokeStyle=shade(it.col,0.42+L.spec*0.5);c.lineWidth=0.9;c.stroke();
      }else if(!(it.p.smooth&&f.side)){
