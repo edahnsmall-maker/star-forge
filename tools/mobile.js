@@ -24,8 +24,10 @@ const {chromium,devices}=require('playwright');const path=require('path');
   // build a ship entirely through taps on the real controls
   for(let i=0;i<7;i++){
     const tabs=await p.$$('.slot-tab');
-    if(tabs[i]){await tabs[i].tap();await p.waitForTimeout(60);
-      const fwd=await p.$$('.cyc'); if(fwd[1]){await fwd[1].tap();await p.waitForTimeout(60);}}
+    if(tabs[i]){await tabs[i].tap();await p.waitForTimeout(80);
+      // pick the first option that is actually unlocked, from the strip
+      const opts=await p.$$('.opt:not([disabled])');
+      if(opts[0]){await opts[0].tap();await p.waitForTimeout(80);}}
   }
   out.builtByTapping=await p.evaluate(()=>NEEDED.filter(k=>ship[k]<0).length===0);
   // launch and steer by touch

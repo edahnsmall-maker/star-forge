@@ -1776,7 +1776,7 @@ function plateSprite(yaw,ss){
    SCENES
    ======================================================================= */
 const SHOW_PAD=false;   // the green baseplate. Flip to bring it back.
-const BUILD_ID='b36';
+const BUILD_ID='b38';
 const SCENE={BUILD:0,LOADOUT:1,FLY:2};
 let scene=SCENE.BUILD;
 let uiTop=176;          // bottom of the wrapped tab block, measured after layout
@@ -1926,6 +1926,44 @@ function lockHint(slot){
  const nx=Math.min.apply(null,l.map(it=>it.unlock||0));
  return '🔒 '+l.length+' more at Lv '+(nx+1);
 }
+/* Every option for the slot, shown at once as pictures you tap. Cycling
+   through them one at a time with arrows is what made building take so long.
+   Each thumbnail is baked once and kept as a data URL. */
+const THUMB=new Map();
+function partPiecesFor(key,i){
+ const hull=ship.body>=0?BODIES[ship.body]:null;
+ const hw=hull?hull.halfW:4,wy=hull?hull.wingY:2,
+       dy=hull?hull.defY:4,dz=hull?hull.defZ:8.6;
+ if(key==='body')return BODIES[i].pieces;
+ if(key==='cockpit')return COCKPITS[i].pieces;
+ if(key==='engine')return ENGINES[i].pieces;
+ if(key==='wings')return WINGS[i].pieces.length?mirX(place(WINGS[i].pieces,hw,wy)):[];
+ if(key==='defense')return placeZ(DEFENSES[i].pieces,dy,dz);
+ if(key==='pilot')return pilotAt(0,4,0,PILOTS[i]);
+ return [];
+}
+function partThumb(key,i){
+ const k=key+i+'_'+ship.theme+'_'+(key==='wings'?ship.body:0);
+ let u=THUMB.get(k);if(u)return u;
+ const ps=partPiecesFor(key,i);
+ const S=104,cv=document.createElement('canvas');cv.width=S;cv.height=S;
+ const g=cv.getContext('2d');
+ if(ps.length){
+   const yaw=0.62,cs=Math.cos(yaw),sn=Math.sin(yaw);
+   let ax=1e9,bx2=-1e9,ay=1e9,by=-1e9;
+   for(const q of ps)for(const v of pieceGeom(q).V){const z=prj(v,cs,sn);
+     if(z[0]<ax)ax=z[0];if(z[0]>bx2)bx2=z[0];if(z[1]<ay)ay=z[1];if(z[1]>by)by=z[1];}
+   const sc=Math.min((S-14)/Math.max(1,bx2-ax),(S-14)/Math.max(1,by-ay));
+   g.save();g.translate(S/2-(ax+bx2)*0.5*sc,S/2-(ay+by)*0.5*sc);g.scale(sc,sc);
+   drawPieces(g,ps,THEMES[ship.theme],yaw);g.restore();
+ }
+ u=cv.toDataURL();THUMB.set(k,u);return u;
+}
+function pickPart(i){
+ const s=SLOTS[activeSlot];
+ if(!isUnlocked(s.list[i]))return;
+ ship[s.key]=i;seenParts.add(s.key+i);SPR.clear();clackSound();buildUI();
+}
 function buildUI(){
  if(scene!==SCENE.BUILD)return;
  const shown=SLOTS.filter(slotOpen);
@@ -1950,30 +1988,34 @@ function buildUI(){
      s.label+(NEEDED.indexOf(s.key)>=0&&ship[s.key]<0?' •':'')+
      (slotHasNew(s)?'<span style="color:#FF3B6B"> ✦</span>':'')+'</button>':'').join('')+
  '</div>'+
- '<div style="position:absolute;bottom:100px;left:0;right:0;display:flex;justify-content:center;align-items:center;gap:18px">'+
-   '<button class="cyc pe" data-d="-1" style="background:#F4F4F4;border:none;border-radius:50%;'+
-     'width:58px;height:58px;font-size:26px;color:#1B2A34;cursor:pointer;box-shadow:0 5px 0 #9aa3a8">◀</button>'+
-   '<div style="text-align:center;min-width:150px">'+
-     '<div style="color:#9DB4C6;font-size:11px;letter-spacing:2px">'+slot.label+'</div>'+
-     '<div style="color:'+(cur?'#fff':'#6B8398')+';font-size:22px;font-weight:bold;letter-spacing:1px;text-shadow:0 3px 0 #1B2A34">'+
-       (cur?cur.name:'— empty —')+
-       (cur&&isNew(slot.key,ship[slot.key],cur)?
-         '<span style="background:#FF3B6B;color:#fff;font-size:10px;padding:2px 6px;'+
-         'border-radius:6px;margin-left:8px;vertical-align:middle;letter-spacing:1px">NEW</span>':'')+
-       '</div>'+
-     '<div style="color:'+(TC.accent||TC.glow)+';font-size:11px;margin-top:3px">'+
-       (cur&&slot.key==='engine'?'⚡ Ship speed '+cur.thrust.toFixed(1)+'x  ':'')+
-       (cur&&slot.key==='tail'?'🎯 Turning '+cur.turn.toFixed(2)+'x  ':'')+
-       (cur&&slot.key==='defense'?'🛰 Fires every '+(cur.rate/60).toFixed(1)+'s  ':'')+
-       (cur?lockHint(slot):'press ▶ to fit one')+'</div>'+
+ '<div style="position:absolute;bottom:116px;left:0;right:0;text-align:center;'+
+   'color:#9DB4C6;font-size:11px;letter-spacing:2px">'+slot.label+
+   (cur?' · <span style="color:#fff;font-weight:bold;letter-spacing:1px">'+cur.name+'</span>':'')+
    '</div>'+
-   '<button class="cyc pe" data-d="1" style="background:#F4F4F4;border:none;border-radius:50%;'+
-     'width:58px;height:58px;font-size:26px;color:#1B2A34;cursor:pointer;box-shadow:0 5px 0 #9aa3a8">▶</button>'+
+ '<div id="strip" style="position:absolute;bottom:10px;left:0;right:0;display:flex;gap:9px;'+
+   'overflow-x:auto;padding:8px 12px 10px;-webkit-overflow-scrolling:touch;scrollbar-width:none">'+
+   slot.list.map((it,i)=>{
+     const open=isUnlocked(it),on=ship[slot.key]===i,fresh=isNew(slot.key,i,it);
+     const art=slot.key==='theme'
+       ? '<div style="width:62px;height:62px;border-radius:9px;display:flex;flex-wrap:wrap;overflow:hidden">'+
+         [it.hull||GREY,it.accent||YEL,it.trim||WHITE,it.dark||BLACK].map(c=>
+           '<div style="width:31px;height:31px;background:'+(c||GREY)+'"></div>').join('')+'</div>'
+       : '<img src="'+partThumb(slot.key,i)+'" width="62" height="62" style="display:block">';
+     return '<button class="opt pe" data-i="'+i+'"'+(open?'':' disabled')+' style="flex:0 0 auto;'+
+       'background:'+(on?'#F2CD37':'#20304A')+';border:'+(fresh?'2px solid #FF3B6B':'2px solid transparent')+';'+
+       'border-radius:12px;padding:6px 6px 4px;cursor:'+(open?'pointer':'default')+';'+
+       'opacity:'+(open?1:0.34)+';filter:'+(open?'none':'grayscale(1)')+';'+
+       'box-shadow:'+(fresh?'0 0 12px rgba(255,59,107,.85)':(on?'0 4px 0 #a8871c':'0 3px 0 #10182B'))+'">'+
+       art+
+       '<div style="font-size:9px;font-weight:bold;letter-spacing:.3px;margin-top:3px;max-width:62px;'+
+         'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:'+(on?'#1B2A34':'#9DB4C6')+'">'+
+         (open?it.name:'🔒 Lv '+((it.unlock||0)+1))+'</div></button>';
+   }).join('')+
  '</div>'+
  '<div id="hint" style="position:absolute;top:152px;left:0;right:0;text-align:center;color:#6B8398;font-size:11px;letter-spacing:1px">'+
    '↔ drag the ship to spin it</div>'+
    '<div style="position:absolute;bottom:4px;right:8px;color:#43596D;font-size:10px;letter-spacing:1px">'+BUILD_ID+'</div>'+
- '<div style="position:absolute;bottom:18px;left:0;right:0;display:flex;justify-content:center">'+
+ '<div style="position:absolute;bottom:142px;left:0;right:0;display:flex;justify-content:center">'+
    (function(){const m=missingSlot();
      return m?'<button id="next" class="brick-btn" style="background:#44586B;color:#A9BCCB;'+
        'box-shadow:0 5px 0 #2B3B49,0 8px 12px rgba(0,0,0,.45)">FIT A '+m.label+'</button>'
@@ -1989,7 +2031,9 @@ function buildUI(){
    uiTop=b2+22;
  })();
  ui.querySelectorAll('.slot-tab').forEach(b=>b.onclick=()=>selectSlot(+b.dataset.i));
- ui.querySelectorAll('.cyc').forEach(b=>b.onclick=()=>cycleSlot(activeSlot,+b.dataset.d));
+ ui.querySelectorAll('.opt').forEach(b=>b.onclick=()=>pickPart(+b.dataset.i));
+ (function(){const st=document.getElementById('strip'),on=st&&st.querySelector('.opt[data-i="'+ship[slot.key]+'"]');
+   if(on&&on.scrollIntoView)on.scrollIntoView({block:'nearest',inline:'center'});})();
  document.getElementById('next').onclick=()=>{const m=missingSlot();
    if(m){activeSlot=SLOTS.indexOf(m);scrollSound();buildUI();}else goLoadout();};
 }
@@ -2093,7 +2137,7 @@ function drawBuild(){
  const spinning=dragging||yawSpin!==0;
  // fit pad + model to the free band, instead of a fixed fraction of the screen
  const fp=shipFootprint();
- const bandTop=Math.max(150,uiTop),bandBot=H-158,band=Math.max(120,bandBot-bandTop);
+ const bandTop=Math.max(150,uiTop),bandBot=H-206,band=Math.max(104,bandBot-bandTop);
  const empty=!shipPieces().length;
  // an empty pad is scenery, not the subject -- left to fill the band it swamps
  // the screen and swallows the caption
@@ -2101,13 +2145,11 @@ function drawBuild(){
  // quantised so a part swap cannot spray the sprite cache with near-identical scales
  // the card takes a column beside the model on a wide screen and a strip
  // below it on a phone; the model gets whatever is left of the band
- const box=partPieces()?cardBox(bandTop,band):null;
- const modelW=(box&&box.side)?Math.max(W*0.52,box.x-24):W*0.94;
- const modelH=(box&&!box.side)?Math.max(120,box.y-bandTop-10):band;
+ const modelW=W*0.94,modelH=band;
  const sc=Math.max(0.45,Math.min(cap,
    Math.round(Math.min(modelW/fp.pw,modelH*0.94/fp.ph)*20)/20));
- const cxc=(box&&box.side)?box.x*0.5:W/2;
- const cyc=bandTop+((box&&!box.side)?modelH*0.5:(empty?band*0.62:band*0.5));
+ const cxc=W/2;
+ const cyc=bandTop+(empty?band*0.62:band*0.5);
  const cx=cxc-(fp.ax+fp.bx)*0.5*sc,
        cy=cyc-(fp.ay+fp.by)*0.5*sc;
  if(empty){                                      // an empty pad, waiting
@@ -2152,7 +2194,6 @@ function drawBuild(){
  }
  drawShip(ctx,cx,cy,sc,0.45+0.25*Math.sin(bob*2),buildYaw,true,spinning);
  cardYaw+=0.0032;
- if(box)drawPartCard(box);
 }
 // drag anywhere on the pad to spin the model
 addEventListener('pointerdown',e=>{if(scene!==SCENE.BUILD)return;dragging=true;dragged=false;dragX=e.clientX;});
@@ -2190,6 +2231,16 @@ function loadoutUI(){
        '<div style="color:#fff;font-size:15px;font-weight:bold;margin-top:8px;text-shadow:0 2px 0 rgba(0,0,0,.35)">'+p.name+'</div>'+
        '<div style="color:rgba(255,255,255,.85);font-size:11px;margin-top:6px;line-height:1.4">'+p.desc+'</div></button>').join('')+
    '</div>'+
+   '<div style="display:flex;gap:10px;align-items:center;margin-top:2px">'+
+     ['easy','normal'].map(m=>'<button class="md pe" data-m="'+m+'" style="background:'+
+       (flyMode===m?'#57A93B':'#2C4257')+';border:none;border-radius:12px;padding:8px 18px;'+
+       'color:#fff;font-size:13px;font-weight:bold;letter-spacing:1px;cursor:pointer;'+
+       'box-shadow:0 4px 0 '+shade(flyMode===m?'#57A93B':'#2C4257',-0.35)+'">'+
+       (m==='easy'?'🙂 EASY':'😤 NORMAL')+'</button>').join('')+
+   '</div>'+
+   '<div style="color:#6B8398;font-size:11px;margin-top:-6px">'+
+     (flyMode==='easy'?'fewer rocks, slower, and the edges are safe'
+                      :'more rocks, faster, and it gets steep')+'</div>'+
    '<div style="color:#9DB4C6;font-size:12px;letter-spacing:2px;margin-top:4px">AND A GADGET TO SET OFF</div>'+
    '<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;padding:0 12px">'+
      GADGETS.map(g=>'<button class="gd pe" data-id="'+g.id+'" style="background:'+
@@ -2200,6 +2251,7 @@ function loadoutUI(){
        '<div style="color:rgba(255,255,255,.8);font-size:10px;margin-top:4px;line-height:1.3">'+g.desc+'</div></button>').join('')+
    '</div>'+
    '<button id="back" class="brick-btn" style="margin-top:6px;font-size:14px;padding:11px 22px">◀ Back to ship</button></div>';
+ ui.querySelectorAll('.md').forEach(b=>b.onclick=()=>{flyMode=b.dataset.m;clackSound();loadoutUI();});
  ui.querySelectorAll('.gd').forEach(b=>b.onclick=()=>{chosenGadget=b.dataset.id;clackSound();loadoutUI();});
  ui.querySelectorAll('.pw').forEach(b=>b.onclick=()=>{chosenPower=b.dataset.id;powerSound();startMission();});
  document.getElementById('back').onclick=()=>{scene=SCENE.BUILD;buildUI();};
@@ -2235,25 +2287,38 @@ let fly={};
 // a number a six-year-old can hold in his head, and see coming
 // The goal has to climb with the field, or a faster level is simply a shorter
 // one -- more danger per second but fewer seconds to be in danger.
-const missionGoal=lv=>Math.min(24,7+Math.round(lv*0.85));
+const missionGoal=lv=>flyMode==='easy'
+  ? Math.min(14,5+Math.round(lv*0.45))
+  : Math.min(24,7+Math.round(lv*0.85));
 /* The whole difficulty curve, in one place so it can be tuned against measured
    win rates instead of guessed at. Levels 1-5 are for a six-year-old finding
    his feet; from there it climbs steeply, and by 20 it should beat him often.
    Everything here was flat or nearly flat before -- the spawn interval hit its
    floor at level 18 and the world speed barely moved, so level 20 played much
    like level 8. */
-const DIFF=lv=>({
- scroll:    2.9+lv*0.28,                       // how fast the field comes at you
- every:     Math.max(6,33-lv*1.5),             // frames between spawns
- drift:     lv>=5?0.5+lv*0.10:0,               // sideways wander on rocks
- swarmFrom: 9,
- splitFrom: 10,
- droneP:    lv>=3?Math.min(0.28,0.03+lv*0.016):0,
- spitP:     lv>=6?Math.min(0.44,0.10+lv*0.017):0,
- spitEvery: Math.max(24,76-lv*3.0),            // how often a spitter fires
- shields:   lv>=14?2:3,                        // it stops being forgiving
- bossHp:    Math.min(11,3+Math.floor(lv/2.2)),
-});
+/* Two curves. EASY is for someone still learning to steer: far fewer rocks,
+   a slower field, more shields, and -- because he pins the ship against the
+   side of the screen when he panics -- nothing spawns in the outer lane, so
+   the edges are somewhere to hide rather than somewhere to die. */
+let flyMode='easy';                             // 'easy' | 'normal'
+const DIFF=(lv,m)=>{
+ const e=(m||flyMode)==='easy';
+ return{
+  scroll:    e? 2.3+lv*0.12 : 2.9+lv*0.28,
+  every:     e? Math.max(15,42-lv*1.0) : Math.max(6,33-lv*1.5),
+  drift:     e? (lv>=10?0.3+lv*0.04:0) : (lv>=5?0.5+lv*0.10:0),
+  swarmFrom: e? 16 : 9,
+  splitFrom: e? 17 : 10,
+  droneP:    e? (lv>=6?Math.min(0.14,0.02+lv*0.007):0)
+             : (lv>=3?Math.min(0.28,0.03+lv*0.016):0),
+  spitP:     e? (lv>=11?Math.min(0.16,0.04+lv*0.008):0)
+             : (lv>=6?Math.min(0.44,0.10+lv*0.017):0),
+  spitEvery: e? Math.max(52,110-lv*2.2) : Math.max(24,76-lv*3.0),
+  shields:   e? (lv>=15?3:4) : (lv>=14?2:3),
+  bossHp:    e? Math.min(7,2+Math.floor(lv/3.2)) : Math.min(11,3+Math.floor(lv/2.2)),
+  edgeSafe:  e,
+ };
+};
 
 const isBossLevel=lv=>lv%3===0;
 function startMission(){
@@ -2281,7 +2346,7 @@ function startMission(){
   scorePerGem:chosenPower==='speed'?2:1,bossSpawned:false,
   gad:chosenGadget,gCharge:(GADGETS.find(g=>g.id===chosenGadget)||{start:2}).start,
   gMax:3,gSinceGem:0,gFlash:0,
-  magnet:0,freeze:0,scythe:0,scytheId:0,scytheR:98,scytheDmg:2,od:0,eBolts:[],
+  powers:[],magnet:0,freeze:0,scythe:0,scytheId:0,scytheR:98,scytheDmg:2,od:0,eBolts:[],
   spitEvery:DIFF(level).spitEvery};
  buildFlyUI();beep(660,0.1,'square',0.14,200);
 }
@@ -2374,9 +2439,15 @@ function updateFly(){
  const bossOn=!!fly.boss;
  const DF=DIFF(level);
  const every=DF.every;
+ // where a rock may appear. In easy mode the outer lane is left alone.
+ const M=DF.edgeSafe?Math.min(96,W*0.22):60, SPAN=Math.max(60,W-M*2);
+ const spawnX=()=>M+Math.random()*SPAN;
  if(fly.spawnT%Math.floor(every)===0){
    const r=Math.random(),gemShare=1-Math.min(0.09,level*0.0045);  // rockier as it climbs
-   if(r<0.035){fly.shields.push({x:70+Math.random()*(W-140),y:-30,spin:0});}
+   if(r<0.048){const k=['bomb','star','bolt'][(Math.random()*3)|0];
+     fly.powers.push({x:spawnX(),y:-30,spin:0,kind:k,
+       col:k==='bomb'?'#FF6A3D':(k==='star'?'#57A93B':'#F2CD37')});}
+   else if(r<0.082){fly.shields.push({x:spawnX(),y:-30,spin:0});}
    else if(r<0.075){fly.gems.push(mkGem(60+Math.random()*(W-120),-30,true));}
    else if(r<0.235*gemShare){fly.gems.push(mkGem(60+Math.random()*(W-120)));}
    else if(r<0.275*gemShare){const bx=90+Math.random()*(W-180);for(let k=-1;k<=1;k++)fly.gems.push(mkGem(bx+k*46,-30-Math.abs(k)*24));}
@@ -2384,15 +2455,15 @@ function updateFly(){
      const roll=Math.random();
      if(roll<DF.droneP){
        // a drone: slower, hunts your column, has to be shot
-       fly.obstacles.push({x:60+Math.random()*(W-120),y:-40,w:46,h:34,hp:2,hitT:0,
+       fly.obstacles.push({x:spawnX(),y:-40,w:46,h:34,hp:2,hitT:0,
          hunt:true,spin:0,spinV:0,rock:0,sc:46/74,drone:true});
      }else if(roll<DF.droneP+DF.spitP){
        // a spitter: sits in the field and shoots at you
        const w=60;
-       fly.obstacles.push({x:60+Math.random()*(W-120),y:-40,w,h:w*0.7,hp:3,hitT:0,
+       fly.obstacles.push({x:spawnX(),y:-40,w,h:w*0.7,hp:3,hitT:0,
          spit:true,spitT:0,vx:0,spin:Math.random()*7,spinV:(Math.random()-.5)*0.02,
          rock:(Math.random()*ROCKS.length)|0,sc:w/74});
-     }else{const w=38+Math.random()*46;fly.obstacles.push({x:60+Math.random()*(W-120),y:-40,w,h:w*0.7,
+     }else{const w=38+Math.random()*46;fly.obstacles.push({x:spawnX(),y:-40,w,h:w*0.7,
        hp:w<52?1:(w<70?2:3),hitT:0,vx:DF.drift?(Math.random()-0.5)*DF.drift*2:0,
        spin:Math.random()*7,spinV:(Math.random()-.5)*0.04,rock:(Math.random()*ROCKS.length)|0,sc:w/74});}
    }
@@ -2428,6 +2499,31 @@ function updateFly(){
    }
  }
  fly.shields=fly.shields.filter(sp=>!sp.got&&sp.y<H+40);
+
+ /* Three rare pickups that fire on contact -- no button, no charge. He is
+    still learning to steer, so the reward for flying into something good is
+    immediate. Rare enough that they are a moment, not the way you play. */
+ for(const pw of fly.powers){
+   pw.y+=fly.speed;pw.spin+=0.05;
+   const dx=pw.x-fly.shipX,dy=pw.y-fly.shipY;
+   if(!pw.got&&dx*dx+dy*dy<(56+fly.hitW*0.35)*(56+fly.hitW*0.35)){
+     pw.got=true;powerSound();spawnRing(pw.x,pw.y,pw.col);
+     if(pw.kind==='bomb'){
+       for(const o of fly.obstacles){if(o.y<-20)continue;
+         o.dead=true;spawnBurst(o.x,o.y,'#FFB870',14);
+         if(Math.random()<0.3)fly.gems.push(mkGem(o.x,o.y));}
+       fly.obstacles=fly.obstacles.filter(o=>!o.dead);
+       fly.eBolts.length=0;
+       fly.pulses.push({x:pw.x,y:pw.y,r:18,max:Math.max(W,H),dmg:0,col:'#FF6A3D',cosmetic:true});
+       fly.shake=Math.max(fly.shake,14);beep(90,0.45,'sawtooth',0.2,-40);
+     }else if(pw.kind==='star'){
+       fly.magnet=110;beep(880,0.2,'sine',0.16,260);
+     }else{
+       fly.od=260;beep(300,0.26,'square',0.16,420);
+     }
+   }
+ }
+ fly.powers=fly.powers.filter(pw=>!pw.got&&pw.y<H+40);
 
  const magnet=chosenPower==='magnet';
  for(const g of fly.gems){
@@ -2673,6 +2769,24 @@ function drawFly(){
    ctx.restore();
  }
  for(const sp of fly.shields)drawShieldPickup(sp);
+ for(const pw of fly.powers){
+   const R=17+Math.sin(pw.spin*2)*2;
+   ctx.save();ctx.translate(pw.x,pw.y);
+   ctx.globalCompositeOperation='lighter';
+   ctx.globalAlpha=0.55;ctx.drawImage(haloImg(pw.col),-R*2.3,-R*2.3,R*4.6,R*4.6);
+   ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';
+   ctx.rotate(pw.spin*0.5);
+   ctx.fillStyle=pw.col;ctx.strokeStyle='rgba(255,255,255,0.85)';ctx.lineWidth=2.5;
+   ctx.beginPath();
+   for(let i=0;i<6;i++){const a=i/6*Math.PI*2;
+     const x=Math.cos(a)*R,y=Math.sin(a)*R;i?ctx.lineTo(x,y):ctx.moveTo(x,y);}
+   ctx.closePath();ctx.fill();ctx.stroke();
+   ctx.rotate(-pw.spin*0.5);
+   ctx.font='bold 17px Trebuchet MS';ctx.textAlign='center';ctx.textBaseline='middle';
+   ctx.fillText(pw.kind==='bomb'?'💥':(pw.kind==='star'?'🌀':'⚡'),0,1);
+   ctx.textAlign='left';ctx.textBaseline='alphabetic';
+   ctx.restore();
+ }
  if(fly.boss)drawBoss(fly.boss);
  if(fly.freeze>0){
    ctx.save();ctx.globalAlpha=Math.min(0.22,fly.freeze/170*0.22);
