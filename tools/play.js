@@ -21,7 +21,9 @@ const {chromium}=require('playwright');
  // 3. UI buttons work: go to loadout, pick a power, land in flight
  await p.evaluate(()=>{scene=SCENE.BUILD;buildUI();});
  await p.click('#next');await p.waitForTimeout(150);
- await p.click('.pw[data-id="magnet"]');await p.waitForTimeout(400);
+ await p.click('.pw[data-id="magnet"]');await p.waitForTimeout(150);
+ log.push('power card only selects: '+await p.evaluate(()=>scene===SCENE.LOADOUT&&chosenPower==='magnet'?'yes (ok)':'NO'));
+ await p.click('#go');await p.waitForTimeout(400);
  log.push('scene after power pick: '+await p.evaluate(()=>scene===SCENE.FLY?'FLY (ok)':'WRONG'));
  // 4. steering hit-zones respond
  await p.evaluate(()=>{document.getElementById('zL').onmousedown({preventDefault(){}});});
@@ -31,7 +33,7 @@ const {chromium}=require('playwright');
  // 5. win a level and confirm the unlock + level advance
  const before=await p.evaluate(()=>({lv:level,up:unlockPoints}));
  await p.evaluate(()=>{fly.crystals=fly.goal;winMission();});
- await p.waitForTimeout(900);await p.mouse.click(215,700);await p.waitForTimeout(300);
+ await p.waitForTimeout(900);await p.click('#endGo');await p.waitForTimeout(300);
  const after=await p.evaluate(()=>({lv:level,up:unlockPoints,scene}));
  log.push('win -> level '+before.lv+'→'+after.lv+', unlockPoints '+before.up+'→'+after.up+
    ', back to build: '+(after.scene===0?'yes (ok)':'NO'));
@@ -40,8 +42,11 @@ const {chromium}=require('playwright');
  await p.waitForTimeout(200);
  const lv0=await p.evaluate(()=>level);
  await p.evaluate(()=>{fly.shield=1;hitShip();});
- await p.waitForTimeout(900);await p.mouse.click(215,700);await p.waitForTimeout(300);
- log.push('lose -> level stayed: '+(await p.evaluate(()=>level)===lv0?'yes (ok)':'NO'));
+ await p.waitForTimeout(900);await p.click('#endRetry');await p.waitForTimeout(300);
+ log.push('lose -> TRY AGAIN flies the same level: '+(await p.evaluate(l=>scene===SCENE.FLY&&level===l&&!fly.over,lv0)?'yes (ok)':'NO'));
+ await p.evaluate(()=>{fly.shield=1;hitShip();});
+ await p.waitForTimeout(900);await p.click('#endShip');await p.waitForTimeout(300);
+ log.push('lose -> CHANGE SHIP, level stayed: '+(await p.evaluate(l=>scene===SCENE.BUILD&&level===l,lv0)?'yes (ok)':'NO'));
  // 7. resize mid-flight
  await p.evaluate(()=>{goLoadout();startMission();});
  await p.setViewportSize({width:900,height:500});await p.waitForTimeout(600);

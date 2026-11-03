@@ -7,7 +7,7 @@
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{width:100%;height:100%;overflow:hidden;background:#080f26;touch-action:none;
-    user-select:none;-webkit-user-select:none;font-family:'Trebuchet MS','Segoe UI',sans-serif}
+    user-select:none;-webkit-user-select:none;font-family:ui-rounded,"SF Pro Rounded","Nunito","Varela Round","Trebuchet MS",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
   canvas{display:block;width:100%;height:100%}
   #ui{position:fixed;inset:0;pointer-events:none;z-index:5}
   .pe{pointer-events:auto}
@@ -17,6 +17,143 @@
   .brick-btn:active{transform:translateY(4px);box-shadow:0 1px 0 #a8871c,0 3px 6px rgba(0,0,0,.45)}
   .brick-btn.green{background:#57A93B;color:#fff;box-shadow:0 5px 0 #3a7527,0 8px 12px rgba(0,0,0,.45)}
   .brick-btn.green:active{box-shadow:0 1px 0 #3a7527,0 3px 6px rgba(0,0,0,.45)}
+
+  /* ---- the build screen, redrawn for the person actually using it: seven,
+     reading slowly, tapping with a whole finger ---- */
+  :root{--yel:#FFD23F;--yel-d:#C99A0E;--grn:#36D46A;--grn-d:#1B9446;--blu:#2F7BEA;--blu-d:#1B4FA0;
+    --pink:#FF4F8B;--line:rgba(160,190,255,.18)}
+  button{font-family:inherit}
+  .top{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;
+    padding:calc(12px + env(safe-area-inset-top)) 14px 0}
+  .logo{color:#fff;font-size:clamp(18px,4.8vw,28px);font-weight:900;letter-spacing:2px;
+    text-shadow:0 3px 0 #0a1330,0 6px 14px rgba(0,0,0,.5);white-space:nowrap}
+  .logo em{font-style:normal;color:var(--yel)}
+  .pills{display:flex;gap:6px}
+  .pill{background:rgba(10,20,50,.72);border:1px solid var(--line);color:#fff;border-radius:999px;
+    padding:6px 11px;font-size:14px;font-weight:800;white-space:nowrap}
+  .pill.lv{color:#9FF3EE}
+  .steps{position:absolute;left:0;right:0;display:flex;flex-wrap:wrap;justify-content:center;gap:8px 7px;padding:0 10px}
+  .step{position:relative;border:none;cursor:pointer;border-radius:999px;padding:9px 13px;font-size:clamp(13px,1.5vw,17px);
+    font-weight:900;letter-spacing:.6px;background:#22365F;color:#A9BEE2;box-shadow:0 4px 0 #0E1A36;
+    transition:transform .1s,background .15s}
+  @media (max-width:420px){.step{padding:8px 10px;font-size:12px;letter-spacing:.3px}.steps{gap:7px 5px;padding:0 6px}}
+  @media (max-width:340px){.step{padding:7px 8px;font-size:11px}}
+  .step:active{transform:translateY(3px);box-shadow:0 1px 0 #0E1A36}
+  .step.done{background:#1D6B44;color:#C9FFD9;box-shadow:0 4px 0 #0E3B24}
+  .step i{font-style:normal;margin-right:4px}
+  .step.on{background:var(--yel);color:#2A2000;box-shadow:0 4px 0 var(--yel-d);transform:scale(1.08)}
+  .step.next{animation:nudge 1.1s ease-in-out infinite;outline:3px solid rgba(255,210,63,.8);outline-offset:2px}
+  .dot{position:absolute;top:-3px;right:-3px;width:12px;height:12px;border-radius:50%;background:var(--pink);
+    box-shadow:0 0 0 2px #0d1838,0 0 10px var(--pink)}
+  @keyframes nudge{0%,100%{translate:0 0}50%{translate:0 -3px}}
+  .hint{position:absolute;left:50%;transform:translateX(-50%);color:#C4D4F0;font-size:13px;font-weight:800;
+    background:rgba(10,20,50,.6);border-radius:999px;padding:6px 13px;white-space:nowrap;pointer-events:none;
+    transition:opacity .5s}
+  .ctaRow{position:absolute;left:0;right:0;display:flex;justify-content:center;pointer-events:none}
+  .cta{pointer-events:auto;border:none;cursor:pointer;font-weight:900;letter-spacing:1px;border-radius:18px;
+    padding:14px 26px;font-size:19px;color:#fff;background:var(--blu);
+    box-shadow:0 6px 0 var(--blu-d),0 10px 18px rgba(0,0,0,.45);transition:transform .08s,box-shadow .08s}
+  .cta:active{transform:translateY(5px);box-shadow:0 1px 0 var(--blu-d)}
+  .cta.go{background:var(--grn);font-size:25px;padding:16px 42px;animation:glow 1.6s ease-in-out infinite;
+    text-shadow:0 2px 0 rgba(0,0,0,.25)}
+  .cta.go:active{box-shadow:0 1px 0 var(--grn-d)}
+  @keyframes glow{0%,100%{box-shadow:0 7px 0 var(--grn-d),0 0 0 0 rgba(54,212,106,.6),0 12px 22px rgba(0,0,0,.5)}
+    60%{box-shadow:0 7px 0 var(--grn-d),0 0 0 16px rgba(54,212,106,0),0 12px 22px rgba(0,0,0,.5)}}
+  .ask{color:#fff;font-size:23px;font-weight:900;letter-spacing:.5px;text-shadow:0 3px 0 #0a1330;padding:10px 0}
+  .ask b{color:var(--yel)}
+  .bob{display:inline-block;animation:bob .9s ease-in-out infinite}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}
+  .strip{position:absolute;bottom:0;left:0;right:0;display:flex;gap:10px;overflow-x:auto;
+    padding:12px 14px calc(14px + env(safe-area-inset-bottom));scrollbar-width:none;-webkit-overflow-scrolling:touch;
+    background:linear-gradient(to top,rgba(5,10,28,.9) 55%,rgba(5,10,28,0))}
+  .strip::-webkit-scrollbar{display:none}
+  /* centred when the row fits, scrollable from its first tile when it does not */
+  .strip>.opt:first-child{margin-left:auto}.strip>.opt:last-child{margin-right:auto}
+  .opt{position:relative;flex:0 0 auto;width:98px;border:none;cursor:pointer;border-radius:18px;
+    padding:7px 6px 8px;background:#1C2E55;box-shadow:0 5px 0 #0C1630;transition:transform .08s}
+  .opt:active{transform:translateY(4px);box-shadow:0 1px 0 #0C1630}
+  .opt .art{display:block;width:86px;height:86px;margin:0 auto}
+  .opt .art img{width:86px;height:86px;display:block}
+  .opt .nm{display:block;margin-top:3px;font-size:13px;font-weight:800;color:#C3D3EF;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis}
+  .opt.on{background:var(--yel);box-shadow:0 5px 0 var(--yel-d)}
+  .opt.on .nm{color:#2A2000}
+  .opt.fresh:not(.on){box-shadow:0 5px 0 #0C1630,0 0 0 3px var(--pink),0 0 18px rgba(255,79,139,.85)}
+  .opt .tag{position:absolute;top:-7px;right:-4px;background:var(--pink);color:#fff;font-size:11px;font-weight:900;
+    padding:3px 8px;border-radius:999px;box-shadow:0 2px 0 #9c1f4a;letter-spacing:.5px}
+  .opt.locked{background:#141F38;box-shadow:0 5px 0 #0A1226;cursor:default}
+  .opt.locked .art{opacity:.25;filter:grayscale(1)}
+  .opt.locked .nm{color:#7486A8;font-size:12px}
+  .none{display:flex;align-items:center;justify-content:center;width:80px;height:80px;margin:3px;
+    border:3px dashed rgba(170,190,230,.35);border-radius:14px;color:#8EA3C8;font-size:13px;font-weight:900;
+    text-align:center;line-height:1.15}
+  .opt.on .none{border-color:rgba(60,40,0,.4);color:#5A4300}
+  .sw{display:grid;grid-template-columns:1fr 1fr;width:68px;height:68px;margin:9px;border-radius:14px;
+    overflow:hidden;box-shadow:0 0 0 3px rgba(255,255,255,.18)}
+  .bid{position:absolute;bottom:2px;right:6px;color:#3D5170;font-size:10px;pointer-events:none}
+
+  .lo{position:absolute;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;gap:9px;
+    padding:30px 12px calc(16px + env(safe-area-inset-bottom));
+    background:linear-gradient(to top,rgba(5,10,28,.96) 78%,rgba(5,10,28,0))}
+  .lo-t{color:#fff;font-size:clamp(22px,6vw,32px);font-weight:900;letter-spacing:1.5px;text-shadow:0 3px 0 #0a1330}
+  .lo-h{color:#9FB4D8;font-size:12px;font-weight:900;letter-spacing:2px;margin-top:2px}
+  .cards{display:flex;gap:8px;justify-content:center;width:100%;max-width:560px}
+  .card{flex:1 1 0;min-width:0;border:none;cursor:pointer;border-radius:18px;padding:10px 5px;background:#1C2E55;
+    box-shadow:0 5px 0 #0C1630;color:#fff;transition:transform .1s,background .15s}
+  .card:active{transform:translateY(4px)}
+  .card .ic{display:block;font-size:30px;line-height:1.15}
+  .card .cn{display:block;font-size:12px;font-weight:900;margin-top:4px;letter-spacing:.3px;line-height:1.1;
+    overflow-wrap:anywhere}
+  .card .cd{display:block;font-size:11px;font-weight:700;color:#A9BEE2;margin-top:3px;line-height:1.2}
+  .card.on{background:var(--c);box-shadow:0 5px 0 rgba(0,0,0,.4),0 0 0 3px #fff;transform:translateY(-3px)}
+  .card.on .cd{color:rgba(255,255,255,.92)}
+  .cards.g .ic{font-size:24px}
+  .cards.g .cd{font-size:10px}
+  .seg{display:flex;background:#0F1B38;border-radius:14px;padding:4px;gap:4px;margin-top:2px}
+  .seg button{border:none;cursor:pointer;border-radius:10px;padding:8px 18px;font-size:13px;font-weight:900;
+    color:#8EA3C8;background:transparent}
+  .seg button.on{background:#2B4A80;color:#fff}
+  .lo .cta.go{margin-top:4px;font-size:28px;padding:15px 56px}
+
+  .end{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:12px;padding:20px;pointer-events:none;animation:pop .35s cubic-bezier(.2,1.4,.4,1) both}
+  @keyframes pop{from{transform:scale(.8);opacity:0}to{transform:scale(1);opacity:1}}
+  .end-t{font-size:clamp(38px,11vw,64px);font-weight:900;letter-spacing:1px;text-shadow:0 5px 0 #0a1330,0 10px 26px rgba(0,0,0,.6)}
+  .end-t.win{color:var(--grn)}
+  .end-t.lose{color:#FF7A59}
+  .end-s{color:#fff;font-size:22px;font-weight:900}
+  .endbar{width:min(260px,70vw);height:16px;border-radius:999px;background:#18284A;overflow:hidden;
+    box-shadow:inset 0 2px 0 rgba(0,0,0,.4)}
+  .endbar i{display:block;height:100%;background:linear-gradient(90deg,#36D46A,#9BFFB8);border-radius:999px}
+  .newrow{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+  .newp{width:100px;border-radius:18px;padding:7px 6px 8px;background:#1C2E55;
+    box-shadow:0 5px 0 #0C1630,0 0 0 3px var(--pink),0 0 20px rgba(255,79,139,.7);text-align:center}
+  .newp .art{display:block;width:86px;height:86px;margin:0 auto}
+  .newp img{width:86px;height:86px;display:block}
+  .newp .nm{display:block;color:#fff;font-size:13px;font-weight:900;margin-top:2px}
+  .end .cta{margin-top:6px}
+
+  .hud{position:absolute;top:0;left:0;right:0;display:grid;grid-template-columns:1fr auto 1fr;align-items:start;
+    padding:calc(10px + env(safe-area-inset-top)) 12px 0;color:#fff;pointer-events:none}
+  .hud-s{justify-self:start}
+  .shields{font-size:19px;letter-spacing:-3px;white-space:nowrap;filter:drop-shadow(0 2px 0 #0a1330)}
+  .def{font-size:11px;font-weight:900;letter-spacing:1px;margin-top:2px}
+  .hud-g{text-align:center;min-width:140px}
+  .gemrow{font-size:26px;font-weight:900;color:#7CF29A;text-shadow:0 3px 0 #0a1330}
+  #cz{display:inline-block;transition:transform .1s}
+  .gbar{width:150px;height:12px;margin:4px auto 0;border-radius:999px;background:rgba(20,36,70,.85);overflow:hidden;
+    box-shadow:inset 0 2px 0 rgba(0,0,0,.4)}
+  .gbar i{display:block;height:100%;background:linear-gradient(90deg,#36D46A,#B4FFC9);border-radius:999px;transition:width .2s}
+  .combo{font-size:15px;font-weight:900;color:var(--yel);height:18px;margin-top:3px;text-shadow:0 2px 0 #0a1330}
+  .hud-l{justify-self:end}
+  .steer{position:absolute;bottom:calc(46px + env(safe-area-inset-bottom));width:58px;height:58px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;font-size:24px;color:rgba(255,255,255,.55);
+    background:rgba(40,70,130,.28);border:2px solid rgba(160,190,255,.25);pointer-events:none;transition:all .08s}
+  .steer.l{left:18px}.steer.r{right:18px}
+  .steer.on{background:rgba(255,210,63,.85);color:#2A2000;border-color:#fff;transform:scale(1.1)}
+  .steerhint{position:absolute;left:0;right:0;bottom:calc(122px + env(safe-area-inset-bottom));text-align:center;color:#fff;
+    font-size:18px;font-weight:900;text-shadow:0 2px 0 #0a1330;pointer-events:none;animation:fadeout 1s 3.5s forwards}
+  @keyframes fadeout{to{opacity:0}}
 </style>
 </head>
 <body>
@@ -48,6 +185,7 @@ import('./build3d.js').then(m=>{window.__mkForge=m.createForge;
  };
  addEventListener('error',ev=>window.__oops('startup',ev.error||ev.message));
 })();
+const FONT='ui-rounded,"SF Pro Rounded","Nunito","Varela Round","Trebuchet MS",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif';
 const canvas=document.getElementById('c'),ctx=canvas.getContext('2d'),ui=document.getElementById('ui');
 let W,H,DPR;
 // The build screen is static and is where the detail matters, so it renders at
@@ -75,6 +213,7 @@ function beep(f=440,d=0.08,t='square',v=0.15,slide=0){const a=audio();if(!a)retu
   if(slide)o.frequency.exponentialRampToValueAtTime(Math.max(40,f+slide),a.currentTime+d);
   g.gain.setValueAtTime(v,a.currentTime);g.gain.exponentialRampToValueAtTime(0.0001,a.currentTime+d);
   o.connect(g);g.connect(a.destination);o.start();o.stop(a.currentTime+d);}
+const completeSound=()=>{beep(523,0.08,'triangle',0.16);setTimeout(()=>beep(659,0.08,'triangle',0.16),90);setTimeout(()=>beep(784,0.16,'triangle',0.18),180);};
 const clackSound=()=>{beep(200,0.03,'square',0.16,-60);setTimeout(()=>beep(340,0.045,'square',0.2,-120),34);};
 const snapSound=clackSound;
 const scrollSound=()=>beep(260,0.035,'square',0.11,-70);
@@ -1688,6 +1827,41 @@ function thruster(c,x,y,dx,dy,r,t,C,seed){
   c.quadraticCurveTo(x+dx*cl*0.5,y+dy*cl*0.5,x-px*cw,y-py*cw);
   c.closePath();c.fill();
   c.restore();}
+/* The flight ship comes out of the same 3D renderer as the build screen,
+   through a camera that matches the old projection, so the hitbox and the
+   exhaust (both placed with prj) still line up with what you see. It banks
+   into turns instead of swivelling. One render per bank angle, kept. */
+let FFORGE=null,FFORGE_DEAD=false,FKEY='';const FSPR=new Map();
+function flightForge(){
+ if(FFORGE||FFORGE_DEAD)return FFORGE;
+ if(!window.__mkForge)return null;
+ try{FFORGE=window.__mkForge(document.createElement('canvas'),{blit:true,pad:false,exposure:1.4});}
+ catch(e){FFORGE_DEAD=true;}
+ return FFORGE;
+}
+function flySprite(roll,s){
+ const f=flightForge();if(!f)return null;
+ const k=forgeKey();
+ if(k!==FKEY){FKEY=k;FSPR.clear();f.setShip(shipPieces(),THEMES[ship.theme]);}
+ const q=Math.round(roll*20)/20,ppu=Math.round(Math.min(4,s*(DPR||1)*1.2)*20)/20,key=q+'|'+ppu;
+ if(FSPR.has(key))return FSPR.get(key);
+ let sp=null;
+ try{sp=f.sprite(q,ppu,{tilt:TILT,rise:RISE,camd:CAMD});}catch(e){FFORGE_DEAD=true;FFORGE=null;}
+ if(FSPR.size>48)FSPR.clear();FSPR.set(key,sp);return sp;
+}
+function drawFlyShip(x,y,s,t,roll){
+ const sp=flySprite(roll,s);if(!sp)return false;
+ ctx.save();ctx.translate(x,y);ctx.scale(s,s);
+ if(t>0&&ship.engine>=0){const cr=Math.cos(roll),sr=Math.sin(roll),pal=THEMES[ship.theme];
+   for(const n of ENGINES[ship.engine].nozzles){
+     const wx=n.x*STUD,wy=n.y*PLATE-CY,rx=wx*cr-wy*sr,ry=wx*sr+wy*cr;
+     const q=prj([rx,ry,n.z*STUD-CZ],1,0),q2=prj([rx,ry,(n.z+6)*STUD-CZ],1,0);
+     let dx=q2[0]-q[0],dy=q2[1]-q[1];const m=Math.hypot(dx,dy);
+     if(m<0.001){dx=0;dy=1;}else{dx/=m;dy/=m;}
+     thruster(ctx,q[0],q[1],dx,dy,n.r,t,pal,n.x*7.3+n.z*1.7);}}
+ ctx.drawImage(sp.cv,sp.ox,sp.oy,sp.w,sp.h);
+ ctx.restore();return true;
+}
 function drawShip(c,x,y,s,t=0.6,yaw=0,dof,rough){
  /* While it is turning, every new angle is a fresh bake, so a finer spin costs
     frames directly. Baking at roughly half the supersample during motion makes
@@ -1784,9 +1958,10 @@ function plateSprite(yaw,ss){
    SCENES
    ======================================================================= */
 const SHOW_PAD=false;   // the green baseplate. Flip to bring it back.
-const BUILD_ID='b39';
+const BUILD_ID='b40';
 const SCENE={BUILD:0,LOADOUT:1,FLY:2};
 let scene=SCENE.BUILD;
+let uiBot=0;
 let uiTop=176;          // bottom of the wrapped tab block, measured after layout
 let level=1;const MAX_LEVEL=20;
 let totalCrystals=0,unlockPoints=0,chosenPower='shield';
@@ -2008,82 +2183,91 @@ function partThumb(key,i){
 }
 // ...and when it lands, throw the flat ones away and draw the strip again.
 addEventListener('forge3d',()=>{THUMB.clear();buildUI();});
+let dropPending=false,advancePending=false;
 function pickPart(i){
  const s=SLOTS[activeSlot];
  if(!isUnlocked(s.list[i]))return;
- ship[s.key]=i;seenParts.add(s.key+i);SPR.clear();clackSound();buildUI();
+ const first=ship[s.key]<0&&NEEDED.indexOf(s.key)>=0;
+ ship[s.key]=i;seenParts.add(s.key+i);SPR.clear();
+ dropPending=true;advancePending=first;
+ beep(980,0.09,'sine',0.05,-520);
+ // with the 3D forge the clack waits for the part to land; without it there
+ // is nothing to wait for
+ if(!FORGE){clackSound();if(first)setTimeout(landAdvance,380);}
+ buildUI();
 }
+// Filling a slot for the first time moves you on to the next one the ship
+// needs -- after the part has landed, so you see it arrive first. Swapping a
+// part you already had leaves you where you are, to keep trying them.
+function landAdvance(){
+ if(!advancePending)return;advancePending=false;
+ const m=missingSlot();
+ if(m&&scene===SCENE.BUILD){activeSlot=SLOTS.indexOf(m);scrollSound();buildUI();}
+ else if(!m&&scene===SCENE.BUILD){completeSound();buildUI();}
+}
+// "no wings" is a real choice but a bad first tap: it put an empty tile first
+// in the row, and tapping the first thing you see gave you nothing.
+const isNone=(sl,i)=>sl.key==='wings'&&!WINGS[i].pieces.length;
+let hintGone=false;
 function buildUI(){
  if(scene!==SCENE.BUILD)return;
- const shown=SLOTS.filter(slotOpen);
  if(!slotOpen(SLOTS[activeSlot]))activeSlot=0;
- const slot=SLOTS[activeSlot],cur=ship[slot.key]>=0?slot.list[ship[slot.key]]:null,TC=THEMES[ship.theme];
- const hs=hiScore>0?'<span style="color:#F2CD37">★ '+hiScore+'</span>':'';
+ const slot=SLOTS[activeSlot],miss=missingSlot();
+ const need=k=>NEEDED.indexOf(k)>=0;
+ const steps=SLOTS.map((s,i)=>{
+   if(!slotOpen(s))return '';
+   const ok=need(s.key)&&ship[s.key]>=0;
+   return '<button class="step pe'+(i===activeSlot?' on':'')+(ok?' done':'')+
+     (miss===s&&i!==activeSlot?' next':'')+'" data-i="'+i+'">'+
+     (ok&&i!==activeSlot?'<i>✓</i>':'')+s.label+(slotHasNew(s)?'<b class="dot"></b>':'')+'</button>';
+ }).join('');
+ const order=slot.list.map((it,i)=>i).sort((a,b)=>(isNone(slot,a)-isNone(slot,b))||a-b);
+ const tiles=order.map(i=>{
+   const it=slot.list[i],open=isUnlocked(it),on=ship[slot.key]===i,fresh=isNew(slot.key,i,it);
+   const art=slot.key==='theme'
+     ? '<span class="sw">'+[it.hull||GREY,it.accent||YEL,it.trim||WHITE,it.dark||BLACK].map(c=>
+         '<span style="background:'+(c||GREY)+'"></span>').join('')+'</span>'
+     : isNone(slot,i) ? '<span class="none">NO<br>WINGS</span>'
+     : '<img src="'+partThumb(slot.key,i)+'" alt="">';
+   return '<button class="opt pe'+(on?' on':'')+(fresh?' fresh':'')+(open?'':' locked')+'" data-i="'+i+'"'+
+     (open?'':' disabled')+'><span class="art">'+art+'</span>'+
+     '<span class="nm">'+(open?it.name:'🔒 Level '+((it.unlock||0)+1))+'</span>'+
+     (fresh?'<span class="tag">NEW</span>':'')+'</button>';
+ }).join('');
+ // One thing to do, said plainly. When a part is missing and you are on its
+ // tab, the row is the answer, so point at it. When you have wandered off to
+ // another tab, offer the way back. When it is all there, the only button is
+ // the one that goes.
+ const cta=!miss
+   ? '<button id="next" class="cta go">🚀 LET\'S FLY!</button>'
+   : miss===slot
+     ? '<div class="ask">Pick your <b>'+slot.label+'</b> <span class="bob">👇</span></div>'
+     : '<button id="next" class="cta">NEXT: '+miss.label+' ▶</button>';
  ui.innerHTML=
- '<div style="position:absolute;top:0;left:0;right:0;padding:18px 18px 10px;display:flex;justify-content:space-between;align-items:center">'+
-   '<div style="color:#fff;font-size:clamp(20px,4vw,30px);font-weight:bold;letter-spacing:3px;'+
-     'text-shadow:0 3px 0 #1B2A34,0 5px 8px rgba(0,0,0,.6)">⚡ STAR FORGE</div>'+
-   '<div style="text-align:right;font-size:13px;color:#fff;text-shadow:0 2px 0 #1B2A34">'+
-     '<div style="color:#AEEFEC">LEVEL '+level+' / '+MAX_LEVEL+'</div>'+
-
-     '<div style="color:#56E646">💎 '+totalCrystals+'</div><div>'+hs+'</div></div>'+
- '</div>'+
- '<div id="tabs" style="position:absolute;top:74px;left:0;right:0;display:flex;justify-content:center;gap:6px;flex-wrap:wrap;padding:0 10px">'+
-   SLOTS.map((s,i)=>slotOpen(s)?'<button class="slot-tab pe" data-i="'+i+'" style="'+
-     'background:'+(i===activeSlot?'#F2CD37':(NEEDED.indexOf(s.key)>=0&&ship[s.key]<0?'#3A2E33':'#2C4257'))+';'+
-     'color:'+(i===activeSlot?'#1B2A34':(NEEDED.indexOf(s.key)>=0&&ship[s.key]<0?'#B08894':'#9DB4C6'))+';'+
-     'border:none;border-radius:8px;padding:7px 11px;font-size:11px;font-weight:bold;letter-spacing:0.5px;'+
-     'cursor:pointer;box-shadow:0 3px 0 '+(i===activeSlot?'#a8871c':'#1B2A34')+';transition:all .1s">'+
-     s.label+(NEEDED.indexOf(s.key)>=0&&ship[s.key]<0?' •':'')+
-     (slotHasNew(s)?'<span style="color:#FF3B6B"> ✦</span>':'')+'</button>':'').join('')+
- '</div>'+
- '<div style="position:absolute;bottom:116px;left:0;right:0;text-align:center;'+
-   'color:#9DB4C6;font-size:11px;letter-spacing:2px">'+slot.label+
-   (cur?' · <span style="color:#fff;font-weight:bold;letter-spacing:1px">'+cur.name+'</span>':'')+
-   '</div>'+
- '<div id="strip" style="position:absolute;bottom:10px;left:0;right:0;display:flex;gap:9px;'+
-   'overflow-x:auto;padding:8px 12px 10px;-webkit-overflow-scrolling:touch;scrollbar-width:none">'+
-   slot.list.map((it,i)=>{
-     const open=isUnlocked(it),on=ship[slot.key]===i,fresh=isNew(slot.key,i,it);
-     const art=slot.key==='theme'
-       ? '<div style="width:62px;height:62px;border-radius:9px;display:flex;flex-wrap:wrap;overflow:hidden">'+
-         [it.hull||GREY,it.accent||YEL,it.trim||WHITE,it.dark||BLACK].map(c=>
-           '<div style="width:31px;height:31px;background:'+(c||GREY)+'"></div>').join('')+'</div>'
-       : '<img src="'+partThumb(slot.key,i)+'" width="62" height="62" style="display:block">';
-     return '<button class="opt pe" data-i="'+i+'"'+(open?'':' disabled')+' style="flex:0 0 auto;'+
-       'background:'+(on?'#F2CD37':'#20304A')+';border:'+(fresh?'2px solid #FF3B6B':'2px solid transparent')+';'+
-       'border-radius:12px;padding:6px 6px 4px;cursor:'+(open?'pointer':'default')+';'+
-       'opacity:'+(open?1:0.34)+';filter:'+(open?'none':'grayscale(1)')+';'+
-       'box-shadow:'+(fresh?'0 0 12px rgba(255,59,107,.85)':(on?'0 4px 0 #a8871c':'0 3px 0 #10182B'))+'">'+
-       art+
-       '<div style="font-size:9px;font-weight:bold;letter-spacing:.3px;margin-top:3px;max-width:62px;'+
-         'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:'+(on?'#1B2A34':'#9DB4C6')+'">'+
-         (open?it.name:'🔒 Lv '+((it.unlock||0)+1))+'</div></button>';
-   }).join('')+
- '</div>'+
- '<div id="hint" style="position:absolute;top:152px;left:0;right:0;text-align:center;color:#6B8398;font-size:11px;letter-spacing:1px">'+
-   '✥ drag the ship to turn it around</div>'+
-   '<div style="position:absolute;bottom:4px;right:8px;color:#43596D;font-size:10px;letter-spacing:1px">'+BUILD_ID+'</div>'+
- '<div style="position:absolute;bottom:142px;left:0;right:0;display:flex;justify-content:center">'+
-   (function(){const m=missingSlot();
-     return m?'<button id="next" class="brick-btn" style="background:#44586B;color:#A9BCCB;'+
-       'box-shadow:0 5px 0 #2B3B49,0 8px 12px rgba(0,0,0,.45)">FIT A '+m.label+'</button>'
-      :'<button id="next" class="brick-btn green">⚡ CHOOSE POWER-UP</button>';})()+'</div>';
- // The tabs wrap to two or three rows depending on width and on how many
- // carry a NEW mark, so the hint and the model have to sit below wherever they
- // actually ended up rather than at a fixed 152px.
+   '<div class="top"><div class="logo">⚡ STAR <em>FORGE</em></div><div class="pills">'+
+     '<span class="pill lv">LEVEL '+level+'</span><span class="pill">💎 '+totalCrystals+'</span></div></div>'+
+   '<div id="tabs" class="steps" style="top:calc(60px + env(safe-area-inset-top))">'+steps+'</div>'+
+   (hintGone||ship.body<0?'':'<div id="hint" class="hint">👆 drag the ship to spin it</div>')+
+   '<div id="cta" class="ctaRow">'+cta+'</div>'+
+   '<div id="strip" class="strip">'+tiles+'</div>'+
+   '<div class="bid">'+BUILD_ID+'</div>';
+ // the tabs wrap to however many rows the width needs, so everything below
+ // them is placed from where they actually ended up
  (function(){
-   const t=document.getElementById('tabs'),h=document.getElementById('hint');
-   if(!t)return;
-   const b2=t.offsetTop+t.offsetHeight+8;
-   if(h)h.style.top=b2+'px';
-   uiTop=b2+22;
+   const t=document.getElementById('tabs'),h=document.getElementById('hint'),
+         c=document.getElementById('cta'),st=document.getElementById('strip');
+   if(!t||!st)return;
+   const tb=t.offsetTop+t.offsetHeight+10;
+   if(h){h.style.top=tb+'px';uiTop=tb+h.offsetHeight+6;}else uiTop=tb+4;
+   c.style.bottom=(st.offsetHeight+4)+'px';
+   uiBot=H-(st.offsetHeight+4+c.offsetHeight+6);
  })();
- ui.querySelectorAll('.slot-tab').forEach(b=>b.onclick=()=>selectSlot(+b.dataset.i));
+ ui.querySelectorAll('.step').forEach(b=>b.onclick=()=>selectSlot(+b.dataset.i));
  ui.querySelectorAll('.opt').forEach(b=>b.onclick=()=>pickPart(+b.dataset.i));
  (function(){const st=document.getElementById('strip'),on=st&&st.querySelector('.opt[data-i="'+ship[slot.key]+'"]');
    if(on&&on.scrollIntoView)on.scrollIntoView({block:'nearest',inline:'center'});})();
- document.getElementById('next').onclick=()=>{const m=missingSlot();
+ const nx=document.getElementById('next');
+ if(nx)nx.onclick=()=>{const m=missingSlot();
    if(m){activeSlot=SLOTS.indexOf(m);scrollSound();buildUI();}else goLoadout();};
 }
 /* A magnified look at just the part being cycled through, turning on its own,
@@ -2170,7 +2354,7 @@ function drawPartCard(box){
  }
  ctx.restore();
  ctx.save();ctx.textAlign='center';
- ctx.font='bold 10px Trebuchet MS';ctx.fillStyle='#9DB4C6';
+ ctx.font='bold 10px '+FONT;ctx.fillStyle='#9DB4C6';
  ctx.fillText(sl.label,x+cw/2,y+ch-8);
  ctx.restore();
 }
@@ -2185,9 +2369,52 @@ let FORGE=null,FORGE_DEAD=false,FORGE_KEY='';
 function forge3(){
   if(FORGE||FORGE_DEAD)return FORGE;
   if(!window.__mkForge)return null;              // module still loading
-  try{FORGE=window.__mkForge(document.createElement('canvas'),{blit:true});}
+  try{FORGE=window.__mkForge(document.createElement('canvas'),{blit:true});
+    FORGE.onLand=pt=>{clackSound();if(pt)burstAt(pt);landAdvance();};}
   catch(e){FORGE_DEAD=true;}
   return FORGE;
+}
+/* Everything the player could put on the pad right now, on every hull they
+   could pick. The camera frames this, not the ship, so the view is the same
+   empty table at the start as it is with the last part on. */
+function frameParts(){
+  const out=[],ok=it=>isUnlocked(it);
+  for(const B of BODIES){ if(!ok(B))continue;
+    out.push(...B.pieces);
+    for(const w of WINGS)if(ok(w)&&w.pieces.length)out.push(...mirX(place(w.pieces,B.halfW,B.wingY)));
+    for(const d of DEFENSES)if(ok(d))out.push(...placeZ(d.pieces,B.defY,B.defZ));
+  }
+  for(const c of COCKPITS)if(ok(c))out.push(...c.pieces);
+  for(const e of ENGINES)if(ok(e))out.push(...e.pieces);
+  return out;
+}
+let FRAME_KEY='',forgeRect={x:0,y:0,w:1,h:1};
+// a handful of bright chips thrown up where the part came down
+const sparks=[];
+function burstAt(pt){
+  const x=forgeRect.x+pt.x*forgeRect.w,y=forgeRect.y+pt.y*forgeRect.h;
+  const cols=['#FFD23F','#ffffff','#9FF3EE','#FF8FB8'];
+  for(let i=0;i<26;i++){const a=Math.PI*(1.05+Math.random()*0.9),v=2.2+Math.random()*4.2;
+    sparks.push({x:x+(Math.random()-0.5)*30,y,vx:Math.cos(a)*v*1.25,vy:Math.sin(a)*v,
+      r:2+Math.random()*2.6,life:34+Math.random()*18,max:52,c:cols[i%4],rot:Math.random()*3});}
+  sparks.push({ring:1,x,y,r:6,life:15,max:15});
+}
+function drawSparks(){
+  if(!sparks.length)return;
+  ctx.save();ctx.globalCompositeOperation='lighter';
+  for(const p of sparks){
+    const a=Math.max(0,p.life/p.max);
+    if(p.ring){p.r+=4.5;ctx.globalAlpha=a*0.8;ctx.strokeStyle='#FFE58A';ctx.lineWidth=3;
+      ctx.beginPath();ctx.ellipse(p.x,p.y,p.r*1.6,p.r*0.55,0,0,7);ctx.stroke();}
+    else{p.x+=p.vx;p.y+=p.vy;p.vy+=0.16;p.vx*=0.985;p.rot+=0.2;
+      ctx.globalAlpha=a;ctx.fillStyle=p.c;ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.rot);
+      const r=p.r;ctx.beginPath();ctx.moveTo(0,-r*1.8);ctx.lineTo(r*0.5,-r*0.5);ctx.lineTo(r*1.8,0);
+      ctx.lineTo(r*0.5,r*0.5);ctx.lineTo(0,r*1.8);ctx.lineTo(-r*0.5,r*0.5);ctx.lineTo(-r*1.8,0);
+      ctx.lineTo(-r*0.5,-r*0.5);ctx.closePath();ctx.fill();ctx.restore();}
+    p.life--;
+  }
+  ctx.restore();
+  for(let i=sparks.length-1;i>=0;i--)if(sparks[i].life<=0)sparks.splice(i,1);
 }
 const forgeKey=()=>[ship.cockpit,ship.wings,ship.body,ship.engine,ship.tail,
   ship.defense,ship.pilot,ship.theme].join(',');
@@ -2200,8 +2427,14 @@ function drawShip3D(x,y,w,h,yaw,pitch){
   const f=forge3(); if(!f||w<40||h<40)return false;
   if(!fdpr)fdpr=Math.min(2,DPR||1);
   try{
+    if(FRAME_KEY!==String(unlockPoints)){FRAME_KEY=String(unlockPoints);f.setFrame(frameParts());}
     const k=forgeKey();
-    if(k!==FORGE_KEY){FORGE_KEY=k;f.setShip(shipPieces(),THEMES[ship.theme]);}
+    if(k!==FORGE_KEY){FORGE_KEY=k;f.setShip(shipPieces(),THEMES[ship.theme],dropPending);
+      // a colour change, or a part with nothing new in it, has nothing to drop
+      if(dropPending&&!f.dropping){clackSound();landAdvance();}
+      dropPending=false;
+    }else if(dropPending){dropPending=false;clackSound();landAdvance();}
+    forgeRect={x,y,w,h};
     f.yaw=yaw; if(pitch!==undefined)f.pitch=pitch;
     f.render(w,h,fdpr,0);
     ctx.drawImage(f.renderer.domElement,x,y,w,h);
@@ -2220,7 +2453,8 @@ function drawBuild(){
  const spinning=dragging||yawSpin!==0;
  // fit pad + model to the free band, instead of a fixed fraction of the screen
  const fp=shipFootprint();
- const bandTop=Math.max(150,uiTop),bandBot=H-206,band=Math.max(104,bandBot-bandTop);
+ if(scene===SCENE.LOADOUT&&!dragging)buildYaw+=0.006;   // on the launch pad it turns by itself
+ const bandTop=uiTop,bandBot=uiBot||H-206,band=Math.max(104,bandBot-bandTop);
  const empty=!shipPieces().length;
  const use3d=!empty&&!!forge3();
  if(use3d)fitPitch(band);
@@ -2237,15 +2471,16 @@ function drawBuild(){
  const cyc=bandTop+(empty?band*0.62:band*0.5);
  const cx=cxc-(fp.ax+fp.bx)*0.5*sc,
        cy=cyc-(fp.ay+fp.by)*0.5*sc;
- if(empty){                                      // an empty pad, waiting
-   const ty=bandTop+40;
+ if(empty&&scene===SCENE.BUILD){                  // an empty pad, waiting
+   const ty=bandTop+band*0.42,fs=Math.floor(Math.min(W*0.09,44));
+   const pr=Math.min(W*0.36,band*0.5),pg=ctx.createRadialGradient(W/2,ty+fs*1.6,4,W/2,ty+fs*1.6,pr);
+   pg.addColorStop(0,'rgba(255,210,63,0.16)');pg.addColorStop(1,'rgba(255,210,63,0)');
+   ctx.save();ctx.fillStyle=pg;ctx.translate(W/2,ty+fs*1.6);ctx.scale(1,0.32);
+   ctx.beginPath();ctx.arc(0,0,pr,0,7);ctx.fill();ctx.restore();
    ctx.save();ctx.textAlign='center';
-   ctx.fillStyle='#1B2A34';
-   ctx.font='bold '+Math.floor(Math.min(W,H)*0.052)+'px Trebuchet MS';
-   ctx.fillText('BUILD YOUR SHIP',W/2,ty+3);
-   ctx.fillStyle='#B9CFE0';ctx.fillText('BUILD YOUR SHIP',W/2,ty);
-   ctx.fillStyle='#7E97AB';ctx.font=Math.floor(Math.min(W,H)*0.032)+'px Trebuchet MS';
-   ctx.fillText('start with a hull',W/2,ty+35);
+   ctx.font='900 '+fs+'px '+FONT;
+   ctx.fillStyle='#0a1330';ctx.fillText('BUILD YOUR SHIP!',W/2,ty+4);
+   ctx.fillStyle='#ffffff';ctx.fillText('BUILD YOUR SHIP!',W/2,ty);
    ctx.restore();}
  // The pad used to be a green baseplate. It ate most of the width, forced the
  // model down to a fraction of the screen, and put a big flat slab of one
@@ -2277,8 +2512,9 @@ function drawBuild(){
      ctx.restore();
    }
  }
- if(!use3d||!drawShip3D(0,bandTop,W,band,buildYaw,buildPitch))
+ if(!empty&&(!use3d||!drawShip3D(0,bandTop,W,band,buildYaw,buildPitch)))
    drawShip(ctx,cx,cy,sc,0.45+0.25*Math.sin(bob*2),buildYaw,true,spinning);
+ drawSparks();
  cardYaw+=0.0032;
 }
 // drag anywhere on the pad to spin the model
@@ -2286,7 +2522,8 @@ addEventListener('pointerdown',e=>{if(scene!==SCENE.BUILD)return;dragging=true;d
  dragX=e.clientX;dragY=e.clientY;});
 addEventListener('pointermove',e=>{if(!dragging)return;
  const dx=e.clientX-dragX,dy=e.clientY-dragY;dragX=e.clientX;dragY=e.clientY;
- if(Math.abs(dx)>0.5||Math.abs(dy)>0.5)dragged=true;
+ if(Math.abs(dx)>0.5||Math.abs(dy)>0.5){dragged=true;
+   if(!hintGone){hintGone=true;const h=document.getElementById('hint');if(h)h.style.opacity=0;}}
  buildYaw+=dx*0.012;
  if(Math.abs(dy)>0.5)pitchSet=true;
  buildPitch=Math.max(0.05,Math.min(1.15,buildPitch+dy*0.006));});
@@ -2297,54 +2534,46 @@ addEventListener('pointerup',()=>{if(dragging){dragging=false;yawSpin=dragged?0.
    come back as gems come in, so using one is a decision rather than a habit. */
 const GADGETS=[
  {id:'nova',name:'NOVA',icon:'💥',col:'#FF6A3D',start:2,
-  desc:'Blows up every rock on the screen'},
+  desc:'Blows up every rock on the screen',short:'boom! all rocks'},
  {id:'vacuum',name:'VACUUM',icon:'🌪',col:'#57A93B',start:2,
-  desc:'Yanks every gem on screen straight to you'},
+  desc:'Yanks every gem on screen straight to you',short:'grabs all gems'},
  {id:'overdrive',name:'OVERDRIVE',icon:'⚡',col:'#F2CD37',start:2,
-  desc:'Your defence fires three times as fast'},
+  desc:'Your defence fires three times as fast',short:'super fast shots'},
  {id:'freeze',name:'FREEZE',icon:'❄️',col:'#78D9F0',start:2,
-  desc:'Rocks stop dead for a few seconds'},
+  desc:'Rocks stop dead for a few seconds',short:'freezes rocks'},
 ];
 let chosenGadget='nova';
 const POWERS=[
- {id:'shield',name:'EXTRA SHIELD',icon:'🛡',desc:'Start with 5 shields instead of 3',color:'#0055BF'},
- {id:'speed',name:'HYPER SPEED',icon:'⚡',desc:'Your ship darts about faster & double points',color:'#57A93B'},
- {id:'magnet',name:'GEM MAGNET',icon:'🧲',desc:'Crystals get pulled toward your ship',color:'#C91A09'}];
+ {id:'shield',name:'EXTRA SHIELD',icon:'🛡',desc:'Start with 5 shields instead of 3',short:'2 more shields',color:'#1F6FE0'},
+ {id:'speed',name:'HYPER SPEED',icon:'⚡',desc:'Your ship darts about faster & double points',short:'zoom + 2× points',color:'#25A955'},
+ {id:'magnet',name:'GEM MAGNET',icon:'🧲',desc:'Crystals get pulled toward your ship',short:'pulls gems in',color:'#E0322A'}];
 function goLoadout(){audio();scene=SCENE.LOADOUT;loadoutUI();clackSound();}
+/* LAUNCH. It used to launch the moment you tapped a power-up, which was the
+   first thing on the screen -- so the gadget and the difficulty below it were
+   choices you only found out about afterwards. Now every card just selects,
+   and one big button goes. The ship you built sits at the top, turning. */
 function loadoutUI(){
- ui.innerHTML='<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;'+
-   'justify-content:center;gap:clamp(10px,2.2vh,20px);overflow-y:auto;padding:14px 0">'+
-   '<div style="color:#fff;font-size:clamp(17px,4.4vw,32px);font-weight:bold;letter-spacing:2px;text-shadow:0 4px 0 #1B2A34">PICK YOUR POWER-UP</div>'+
-   '<div style="display:flex;gap:14px;flex-wrap:wrap;justify-content:center;padding:0 12px">'+
-     POWERS.map(p=>'<button class="pw pe" data-id="'+p.id+'" style="background:'+p.color+';border:none;'+
-       'border-radius:16px;width:clamp(108px,29vw,152px);padding:clamp(10px,2vh,18px) 10px;cursor:pointer;box-shadow:0 6px 0 '+shade(p.color,-0.35)+',0 10px 16px rgba(0,0,0,.45);transition:transform .08s">'+
-       '<div style="font-size:clamp(30px,7vw,44px)">'+p.icon+'</div>'+
-       '<div style="color:#fff;font-size:15px;font-weight:bold;margin-top:8px;text-shadow:0 2px 0 rgba(0,0,0,.35)">'+p.name+'</div>'+
-       '<div style="color:rgba(255,255,255,.85);font-size:11px;margin-top:6px;line-height:1.4">'+p.desc+'</div></button>').join('')+
-   '</div>'+
-   '<div style="display:flex;gap:10px;align-items:center;margin-top:2px">'+
-     ['easy','normal'].map(m=>'<button class="md pe" data-m="'+m+'" style="background:'+
-       (flyMode===m?'#57A93B':'#2C4257')+';border:none;border-radius:12px;padding:8px 18px;'+
-       'color:#fff;font-size:13px;font-weight:bold;letter-spacing:1px;cursor:pointer;'+
-       'box-shadow:0 4px 0 '+shade(flyMode===m?'#57A93B':'#2C4257',-0.35)+'">'+
-       (m==='easy'?'🙂 EASY':'😤 NORMAL')+'</button>').join('')+
-   '</div>'+
-   '<div style="color:#6B8398;font-size:11px;margin-top:-6px">'+
-     (flyMode==='easy'?'fewer rocks, slower, and the edges are safe'
-                      :'more rocks, faster, and it gets steep')+'</div>'+
-   '<div style="color:#9DB4C6;font-size:12px;letter-spacing:2px;margin-top:4px">AND A GADGET TO SET OFF</div>'+
-   '<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;padding:0 12px">'+
-     GADGETS.map(g=>'<button class="gd pe" data-id="'+g.id+'" style="background:'+
-       (g.id===chosenGadget?g.col:'#2C4257')+';border:none;border-radius:14px;width:clamp(92px,24vw,118px);'+
-       'padding:clamp(7px,1.4vh,11px) 7px;cursor:pointer;box-shadow:0 5px 0 '+shade(g.id===chosenGadget?g.col:'#2C4257',-0.35)+'">'+
-       '<div style="font-size:clamp(20px,5vw,26px)">'+g.icon+'</div>'+
-       '<div style="color:#fff;font-size:12px;font-weight:bold;margin-top:4px">'+g.name+'</div>'+
-       '<div style="color:rgba(255,255,255,.8);font-size:10px;margin-top:4px;line-height:1.3">'+g.desc+'</div></button>').join('')+
-   '</div>'+
-   '<button id="back" class="brick-btn" style="margin-top:6px;font-size:14px;padding:11px 22px">◀ Back to ship</button></div>';
+ const card=(cls,it,on,col)=>'<button class="card '+cls+' pe'+(on?' on':'')+'" data-id="'+it.id+'" style="--c:'+col+'">'+
+   '<span class="ic">'+it.icon+'</span><span class="cn">'+it.name+'</span><span class="cd">'+it.short+'</span></button>';
+ ui.innerHTML=
+  '<div class="top"><button id="back" class="pill pe" style="cursor:pointer">◀ SHIP</button>'+
+    '<div class="pills"><span class="pill lv">LEVEL '+level+(isBossLevel(level)?' 👹':'')+'</span></div></div>'+
+  '<div id="lo" class="lo">'+
+    '<div class="lo-t">READY FOR LAUNCH!</div>'+
+    '<div class="lo-h">PICK A POWER-UP</div>'+
+    '<div class="cards">'+POWERS.map(p=>card('pw',p,p.id===chosenPower,p.color)).join('')+'</div>'+
+    '<div class="lo-h">AND A GADGET</div>'+
+    '<div class="cards g">'+GADGETS.map(g=>card('gd',g,g.id===chosenGadget,g.col)).join('')+'</div>'+
+    '<div class="seg">'+['easy','normal'].map(m=>'<button class="md pe'+(flyMode===m?' on':'')+'" data-m="'+m+'">'+
+      (m==='easy'?'🙂 EASY':'😤 HARD')+'</button>').join('')+'</div>'+
+    '<button id="go" class="cta go pe">🚀 GO!</button>'+
+  '</div>';
+ (function(){const lo=document.getElementById('lo'),t=ui.querySelector('.top');
+   uiTop=(t?t.offsetTop+t.offsetHeight:50)+4; uiBot=lo?lo.offsetTop+24:H*0.4;})();
  ui.querySelectorAll('.md').forEach(b=>b.onclick=()=>{flyMode=b.dataset.m;clackSound();loadoutUI();});
  ui.querySelectorAll('.gd').forEach(b=>b.onclick=()=>{chosenGadget=b.dataset.id;clackSound();loadoutUI();});
- ui.querySelectorAll('.pw').forEach(b=>b.onclick=()=>{chosenPower=b.dataset.id;powerSound();startMission();});
+ ui.querySelectorAll('.pw').forEach(b=>b.onclick=()=>{chosenPower=b.dataset.id;clackSound();loadoutUI();});
+ document.getElementById('go').onclick=()=>{powerSound();startMission();};
  document.getElementById('back').onclick=()=>{scene=SCENE.BUILD;buildUI();};
 }
 
@@ -2443,30 +2672,35 @@ function startMission(){
 }
 let touchSteer=0;
 function buildFlyUI(){
- ui.innerHTML='<div style="position:absolute;top:0;left:0;right:0;padding:12px 16px;display:flex;justify-content:space-between;align-items:flex-start;color:#fff">'+
-   '<div><div style="font-size:11px;color:#9DB4C6;letter-spacing:1px">GEMS</div>'+
-     '<div id="cz" style="font-size:26px;font-weight:bold;color:#56E646;text-shadow:0 3px 0 #1B2A34;transition:transform .1s">0 / '+fly.goal+'</div>'+
-     '<div id="score" style="font-size:12px;color:#F2CD37;margin-top:1px">💎 0</div></div>'+
-   '<div style="text-align:center"><div style="font-size:10px;color:#9DB4C6;letter-spacing:2px">LEVEL '+level+(isBossLevel(level)?'  👹':'')+'</div>'+
-     '<div style="font-size:24px;font-weight:bold;color:#AEEFEC;text-shadow:0 3px 0 #1B2A34">'+level+'</div>'+
-     '<div id="combo" style="font-size:14px;color:#F2CD37;height:16px;text-shadow:0 2px 0 #1B2A34"></div></div>'+
-   '<div style="text-align:right"><div style="font-size:11px;color:#9DB4C6;letter-spacing:1px">SHIELD</div>'+
-     '<div id="sz" style="font-size:22px">'+'🛡'.repeat(fly.shield)+'</div>'+
-     '<div style="font-size:10px;color:'+(ship.defense>=0?DEFENSES[ship.defense].col:'#9DB4C6')+';letter-spacing:1px;margin-top:2px">'+
-       (ship.defense>=0?'🛰 '+DEFENSES[ship.defense].name.toUpperCase():'')+'</div></div></div>'+
- '<div class="pe" id="zL" style="position:absolute;left:0;top:60px;bottom:0;width:50%"></div>'+
- '<div class="pe" id="zR" style="position:absolute;right:0;top:60px;bottom:0;width:50%"></div>'+
- '<div style="position:absolute;bottom:14px;left:0;right:0;text-align:center;color:#4A6076;font-size:12px;letter-spacing:2px;pointer-events:none">◀ HOLD TO STEER ▶</div>'+
+ // one gem number, with a bar that fills toward the goal; there used to be
+ // two gem counts side by side and no way to see how far you had to go
+ const pct=Math.round(100*Math.min(1,fly.picked/Math.max(1,fly.goal)));
+ const D=ship.defense>=0?DEFENSES[ship.defense]:null;
+ ui.innerHTML='<div class="hud">'+
+   '<div class="hud-s"><div id="sz" class="shields">'+'🛡'.repeat(Math.max(0,fly.shield))+'</div>'+
+     (D?'<div class="def" style="color:'+D.col+'">'+D.name.toUpperCase()+'</div>':'')+'</div>'+
+   '<div class="hud-g"><div class="gemrow">💎 <span id="cz">'+fly.picked+' / '+fly.goal+'</span></div>'+
+     '<div class="gbar"><i id="gbar" style="width:'+pct+'%"></i></div>'+
+     '<div id="combo" class="combo"></div><div id="score" style="display:none"></div></div>'+
+   '<div class="hud-l"><span class="pill lv">LEVEL '+level+(isBossLevel(level)?' 👹':'')+'</span></div>'+
+ '</div>'+
+ '<div class="pe" id="zL" style="position:absolute;left:0;top:70px;bottom:0;width:50%"></div>'+
+ '<div class="pe" id="zR" style="position:absolute;right:0;top:70px;bottom:0;width:50%"></div>'+
+ '<div id="aL" class="steer l">◀</div><div id="aR" class="steer r">▶</div>'+
+ (fly.dist<60?'<div class="steerhint">hold a side to steer</div>':'')+
  (function(){const G=GADGETS.find(g=>g.id===fly.gad)||GADGETS[0],on=fly.gCharge>0;
-  return '<button id="gad" class="pe" style="position:absolute;bottom:52px;left:50%;transform:translateX(-50%);'+
-   'width:82px;height:82px;border-radius:50%;border:none;cursor:pointer;'+
+  return '<button id="gad" class="pe" style="position:absolute;bottom:calc(26px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);'+
+   'width:84px;height:84px;border-radius:50%;border:none;cursor:pointer;'+
    'background:'+(on?G.col:'#3A4653')+';opacity:'+(on?1:0.5)+';'+
-   'box-shadow:0 6px 0 '+shade(on?G.col:'#3A4653',-0.35)+',0 10px 18px rgba(0,0,0,.5)">'+
-   '<div style="font-size:30px;line-height:1">'+G.icon+'</div>'+
-   '<div style="color:#fff;font-size:12px;font-weight:bold;letter-spacing:1px;text-shadow:0 2px 0 rgba(0,0,0,.4)">'+
+   'box-shadow:0 6px 0 '+shade(on?G.col:'#3A4653',-0.35)+',0 10px 18px rgba(0,0,0,.5)'+(on?',0 0 0 4px rgba(255,255,255,.85)':'')+'">'+
+   '<div style="font-size:32px;line-height:1">'+G.icon+'</div>'+
+   '<div style="color:#fff;font-size:13px;font-weight:900;letter-spacing:1px;text-shadow:0 2px 0 rgba(0,0,0,.4)">'+
      (on?'●'.repeat(fly.gCharge):'—')+'</div></button>';})();
  const zL=document.getElementById('zL'),zR=document.getElementById('zR');
- const set=v=>e=>{e.preventDefault();touchSteer=v;};const clr=e=>{if(e)e.preventDefault();touchSteer=0;};
+ const aL=document.getElementById('aL'),aR=document.getElementById('aR');
+ const lit=v=>{if(aL)aL.classList.toggle('on',v<0);if(aR)aR.classList.toggle('on',v>0);};
+ const set=v=>e=>{e.preventDefault();touchSteer=v;lit(v);};
+ const clr=e=>{if(e)e.preventDefault();touchSteer=0;lit(0);};
  zL.ontouchstart=set(-1);zL.onmousedown=set(-1);zR.ontouchstart=set(1);zR.onmousedown=set(1);
  zL.ontouchend=clr;zR.ontouchend=clr;zL.onmouseup=clr;zR.onmouseup=clr;zL.onmouseleave=clr;zR.onmouseleave=clr;
  const gb=document.getElementById('gad');
@@ -2631,7 +2865,8 @@ function updateFly(){
        fly.crystals+=gain;totalCrystals+=gain;fly.picked+=g.gold?3:1;
        if(g.gold){goldSound();spawnBurst(g.x,g.y,'#F2CD37',22);spawnRing(g.x,g.y,'#F2CD37');}
        else{grabSound(Math.min(6,fly.combo));spawnBurst(g.x,g.y,'#56E646',12);spawnRing(g.x,g.y,'#9BF08A');}
-       const cz=document.getElementById('cz');if(cz){cz.textContent=fly.picked+' / '+fly.goal;cz.style.transform='scale(1.3)';setTimeout(()=>cz.style.transform='scale(1)',110);}
+       const cz=document.getElementById('cz');if(cz){cz.textContent=Math.min(fly.picked,fly.goal)+' / '+fly.goal;cz.style.transform='scale(1.3)';setTimeout(()=>cz.style.transform='scale(1)',110);}
+       const gbar=document.getElementById('gbar');if(gbar)gbar.style.width=Math.round(100*Math.min(1,fly.picked/fly.goal))+'%';
        const sc2=document.getElementById('score');if(sc2)sc2.textContent='💎 '+fly.crystals;
        const cb=document.getElementById('combo');if(cb)cb.textContent=fly.combo>=2?'COMBO x'+fly.combo:'';
        if(++fly.gSinceGem>=6&&fly.gCharge<fly.gMax){
@@ -2873,7 +3108,7 @@ function drawFly(){
      const x=Math.cos(a)*R,y=Math.sin(a)*R;i?ctx.lineTo(x,y):ctx.moveTo(x,y);}
    ctx.closePath();ctx.fill();ctx.stroke();
    ctx.rotate(-pw.spin*0.5);
-   ctx.font='bold 17px Trebuchet MS';ctx.textAlign='center';ctx.textBaseline='middle';
+   ctx.font='bold 17px '+FONT;ctx.textAlign='center';ctx.textBaseline='middle';
    ctx.fillText(pw.kind==='bomb'?'💥':(pw.kind==='star'?'🌀':'⚡'),0,1);
    ctx.textAlign='left';ctx.textBaseline='alphabetic';
    ctx.restore();
@@ -2905,7 +3140,8 @@ function drawFly(){
 
  const blink=fly.invuln>0&&Math.floor(fly.invuln/5)%2===0;
  if(!(fly.over&&!fly.win)&&!blink)
-   drawShip(ctx,fly.shipX,fly.shipY,Math.min(W,H)/360*0.52,0.9,fly.tilt*1.5);
+   if(!drawFlyShip(fly.shipX,fly.shipY,Math.min(W,H)/360*0.52,0.9,-fly.tilt*1.6))
+     drawShip(ctx,fly.shipX,fly.shipY,Math.min(W,H)/360*0.52,0.9,fly.tilt*1.5);
 
  for(const p of fly.particles){
    if(p.ring){ctx.save();ctx.globalAlpha=p.life/p.max;ctx.globalCompositeOperation='lighter';
@@ -2917,33 +3153,47 @@ function drawFly(){
  ctx.restore();
 
  if(fly.over){
-   ctx.save();ctx.fillStyle='rgba(0,0,0,'+Math.min(0.7,fly.overT/40)+')';ctx.fillRect(0,0,W,H);
-   if(fly.overT>20){ctx.textAlign='center';
-     if(fly.win){const done=level>=MAX_LEVEL;
-       ctx.fillStyle='#1B2A34';ctx.font='bold '+Math.floor(W*0.085)+'px Trebuchet MS';
-       ctx.fillText(done?'YOU WON! 🏆':'LEVEL CLEAR!',W/2,H*0.32+4);
-       ctx.fillStyle='#57A93B';ctx.fillText(done?'YOU WON! 🏆':'LEVEL CLEAR!',W/2,H*0.32);
-       ctx.fillStyle='#fff';ctx.font=Math.floor(W*0.036)+'px Trebuchet MS';
-       ctx.fillText(fly.crystals+' crystals'+(fly.maxCombo>=3?'  ·  combo x'+fly.maxCombo:''),W/2,H*0.41);
-       if(done){ctx.fillStyle='#F2CD37';ctx.font=Math.floor(W*0.03)+'px Trebuchet MS';
-         ctx.fillText('All '+MAX_LEVEL+' levels complete! Every part unlocked.',W/2,H*0.48);}
-       else if(nextUnlockPreview()){ctx.fillStyle='#F2CD37';
-         ctx.font='bold '+Math.floor(W*0.036)+'px Trebuchet MS';
-         ctx.fillText('🔓 UNLOCKED: '+nextUnlockPreview(),W/2,H*0.49);}
-     } else {
-       ctx.fillStyle='#1B2A34';ctx.font='bold '+Math.floor(W*0.085)+'px Trebuchet MS';
-       ctx.fillText('SHIP DOWN!',W/2,H*0.36+4);
-       ctx.fillStyle='#C91A09';ctx.fillText('SHIP DOWN!',W/2,H*0.36);
-       ctx.fillStyle='#fff';ctx.font=Math.floor(W*0.034)+'px Trebuchet MS';
-       ctx.fillText('Got '+fly.picked+' of '+fly.goal+' gems — try again!',W/2,H*0.44);}
-     ctx.fillStyle='#F2CD37';ctx.font=Math.floor(W*0.026)+'px Trebuchet MS';
-     ctx.fillText('★ Best: '+hiScore+' crystals · Lv '+hiLevel+' · combo x'+hiCombo,W/2,H*0.55);
-     if(fly.overT>40&&Math.floor(fly.overT/30)%2===0){ctx.fillStyle='#fff';
-       ctx.font='bold '+Math.floor(W*0.032)+'px Trebuchet MS';
-       ctx.fillText(fly.win?(level>=MAX_LEVEL?'TAP TO PLAY AGAIN':'TAP TO UPGRADE SHIP'):'TAP TO RETRY',W/2,H*0.63);}
-   }
-   ctx.restore();
+   ctx.save();ctx.fillStyle='rgba(2,6,20,'+Math.min(0.72,fly.overT/36)+')';ctx.fillRect(0,0,W,H);ctx.restore();
+   if(fly.overT>22&&!fly.endUI){fly.endUI=true;endUI();}
  }
+}
+/* The end of a run. It used to be lines of small canvas text in whatever
+   serif the phone fell back to, with "combo x1" and a best score in it, and
+   one place to tap that sent you all the way back to the build screen --
+   even after a crash, when all you want is another go. */
+function unlockedNext(){                       // what winning this level opens
+ const nx=unlockPoints+1,out=[];
+ SLOTS.forEach(sl=>sl.list.forEach((it,i)=>{if((it.unlock||0)===nx)out.push({sl,it,i});}));
+ return out;
+}
+function endUI(){
+ const g='💎',win=fly.win,done=win&&level>=MAX_LEVEL;
+ let body='';
+ if(win){
+   const nu=done?[]:unlockedNext().slice(0,4);
+   body='<div class="end-t win">'+(done?'YOU WON! 🏆':'LEVEL CLEAR!')+'</div>'+
+     '<div class="end-s">'+g+' '+fly.picked+' gems</div>'+
+     (nu.length?'<div class="lo-h" style="margin-top:6px">NEW PARTS UNLOCKED!</div><div class="newrow">'+
+       nu.map(u=>'<div class="newp"><span class="art">'+(u.sl.key==='theme'
+         ? '<span class="sw" style="margin:6px">'+[u.it.hull||GREY,u.it.accent||YEL,u.it.trim||WHITE,u.it.dark||BLACK]
+             .map(c=>'<span style="background:'+c+'"></span>').join('')+'</span>'
+         : '<img src="'+partThumb(u.sl.key,u.i)+'" alt="">')+'</span>'+
+         '<span class="nm">'+u.it.name+'</span></div>').join('')+'</div>':'')+
+     '<button id="endGo" class="cta go pe">'+(done?'▶ PLAY AGAIN':'▶ KEEP GOING')+'</button>';
+ }else{
+   const pct=Math.round(100*Math.min(1,fly.picked/Math.max(1,fly.goal)));
+   body='<div class="end-t lose">'+(pct>=60?'SO CLOSE!':'OOPS!')+'</div>'+
+     '<div class="end-s">'+g+' '+fly.picked+' of '+fly.goal+' gems</div>'+
+     '<div class="endbar"><i style="width:'+pct+'%"></i></div>'+
+     '<button id="endRetry" class="cta go pe">↻ TRY AGAIN</button>'+
+     '<button id="endShip" class="cta pe" style="font-size:16px;padding:11px 22px">🔧 CHANGE SHIP</button>';
+ }
+ ui.innerHTML='<div class="end">'+body+'</div>';
+ const go=document.getElementById('endGo'),re=document.getElementById('endRetry'),
+       sh=document.getElementById('endShip');
+ if(go)go.onclick=()=>{clackSound();afterMission();};
+ if(re)re.onclick=()=>{powerSound();startMission();};
+ if(sh)sh.onclick=()=>{clackSound();afterMission();};
 }
 const HALOIMG={};
 function haloImg(base){if(HALOIMG[base])return HALOIMG[base];
@@ -3038,7 +3288,7 @@ function drawBoss(b){
  ctx.restore();
 }
 
-addEventListener('pointerdown',()=>{if(scene===SCENE.FLY&&fly.over&&fly.overT>40)afterMission();});
+
 
 let acc=0,last=performance.now();const STEP=1000/60;
 let slowRun=0,fpsN=0,fpsT=0;

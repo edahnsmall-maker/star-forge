@@ -188,17 +188,24 @@ function bakeAO(entries){
   }
 }
 
-export function buildShipGroup(pieces,TH){
+/* A piece's identity is its shape, place and base colour -- not the object,
+   which the part tables rebuild on every call. Two ships share a piece when
+   they share its signature, and that is how the forge knows which bricks just
+   arrived. */
+export const sig=p=>[p.c,p.r||'',p.ax||'y',p.y,p.h,p.ts===undefined?1:p.ts,
+  p.hs?p.hs.join(' '):'',p.pts.map(q=>q[0]+','+q[1]).join(' ')].join('|');
+
+export function buildShipGroup(pieces,TH,inDrop){
   pieces=settle(pieces);
-  const grp=new T.Group();
+  const grp=new T.Group(), drop=new T.Group();
   const aoList=[];
-  const byColour=new Map();                        // colour -> {geos, studs}
+  const byColour=new Map();                        // colour+group -> {geos, studs}
   for(const p of pieces){
     const col=(TH&&!TH.natural&&p.r&&TH[p.r])||p.c;
-    const clear=p.r==='glass';
-    const key=col+(clear?'|t':'');
+    const clear=p.r==='glass', falling=!!(inDrop&&inDrop(p));
+    const key=col+(clear?'|t':'')+(falling?'|d':'');
     let e=byColour.get(key);
-    if(!e){e={col,clear,geos:[],studs:[]};byColour.set(key,e);}
+    if(!e){e={col,clear,falling,geos:[],studs:[]};byColour.set(key,e);}
     const geo=pieceGeometry(p);
     e.geos.push(geo);
     aoList.push({geo,box:geo.boundingBox.clone().expandByScalar(-0.35)});
@@ -214,11 +221,11 @@ export function buildShipGroup(pieces,TH){
   }
   bakeAO(aoList);
   for(const e of byColour.values()){
-    const mat=material(e.col,e.clear);
+    const mat=material(e.col,e.clear), into=e.falling?drop:grp;
     for(const g of e.geos){
       const m=new T.Mesh(g,mat);
       m.castShadow=true; m.receiveShadow=true;
-      grp.add(m);
+      into.add(m);
     }
     if(e.studs.length){
       const im=new T.InstancedMesh(studGeometry(),mat,e.studs.length);
@@ -227,9 +234,10 @@ export function buildShipGroup(pieces,TH){
         im.setMatrixAt(i,d.matrix);});
       im.instanceMatrix.needsUpdate=true;
       im.castShadow=true; im.receiveShadow=true;
-      grp.add(im);
+      into.add(im);
     }
   }
+  if(drop.children.length){grp.add(drop);grp.userData.drop=drop;}
   return grp;
 }
 
@@ -331,19 +339,109 @@ export function createForge(canvas,opt){
   }
   let yaw=0.7, pitch=0.38, spin=0;
 
-  function setShip(pieces,TH){
+  /* THE BUILD TABLE. The camera used to refit itself to whatever was on the
+     pad, so every part that snapped on zoomed the view out -- the ship you
+     were building kept shrinking away from you. A frame fixes the camera to
+     everything that COULD be built, and the ship grows into it instead.
+     Points are the corners of every candidate piece, thinned to a grid. */
+  let frame=null, frameAim=new T.Vector3(), frameR=140, frameLow=0;
+  const frameD=new Map();
+  function setFrame(pieces){
+    const seen=new Set(), pts=[];
+    let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9,z0=1e9,z1=-1e9;
+    const put=(x,y,z)=>{
+      const k=Math.round(x/2)+','+Math.round(y/2)+','+Math.round(z/2);
+      if(seen.has(k))return; seen.add(k); pts.push(x,y,z);
+      if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;if(z<z0)z0=z;if(z>z1)z1=z;};
+    for(const p of pieces){
+      const ax=p.ax||'y';
+      for(let k=0;k<p.pts.length;k++){
+        const q=p.pts[k], th=p.hs?p.hs[k]:p.h;
+        if(ax==='y'){ put(q[0]*STUD,p.y*PLATE-CY,q[1]*STUD-CZ);
+                      put(q[0]*STUD,(p.y+th)*PLATE-CY+STUD_H,q[1]*STUD-CZ); }
+        else        { put(q[0]*STUD,q[1]*PLATE-CY,p.y*STUD-CZ);
+                      put(q[0]*STUD,q[1]*PLATE-CY,(p.y+th)*STUD-CZ); }
+      }
+    }
+    if(!pts.length){frame=null;return;}
+    frame=new Float32Array(pts); frameD.clear();
+    frameAim.set((x0+x1)/2,(y0+y1)/2,(z0+z1)/2);
+    frameR=Math.max(40,Math.hypot(x1-x0,y1-y0,z1-z0)/2);
+    frameLow=y0;
+    pad.position.y=frameLow-1.5;
+    renderer.shadowMap.needsUpdate=true;
+  }
+  /* One distance for the whole turn, not one per frame: fitting each view
+     separately made the ship breathe in and out as it spun. Worst case over
+     a full revolution at this tilt and this screen shape, cached. */
+  function frameDistance(pt,aspect,vr,hr){
+    const k=Math.round(pt*40)+'|'+Math.round(aspect*24);
+    let d=frameD.get(k); if(d)return d;
+    // The band runs the full width of the screen, so at the single widest
+    // angle of a turn a wingtip may just touch the edge. Fitting that angle
+    // with room to spare left the ship small at every other angle.
+    const tv=Math.tan(vr), th=Math.tan(hr)*1.1, cp=Math.cos(pt), spt=Math.sin(pt);
+    d=frameR*0.4;
+    for(let j=0;j<24;j++){
+      const yw=j/24*Math.PI*2;
+      const vx=Math.sin(yw)*cp, vy=spt, vz=Math.cos(yw)*cp;
+      let rx=vz, rz=-vx; const rl=Math.hypot(rx,rz)||1; rx/=rl; rz/=rl;
+      const ux=-rz*vy, uy=rz*vx-rx*vz, uz=rx*vy;      // R x V
+      for(let i=0;i<frame.length;i+=3){
+        const ex=frame[i]-frameAim.x, ey=frame[i+1]-frameAim.y, ez=frame[i+2]-frameAim.z;
+        const along=ex*vx+ey*vy+ez*vz;
+        const a=along+Math.abs(ex*rx+ez*rz)/th;           if(a>d)d=a;
+        const b=along+Math.abs(ex*ux+ey*uy+ez*uz)/tv;     if(b>d)d=b;
+      }
+    }
+    frameD.set(k,d); return d;
+  }
+
+  /* SNAP. Whatever is new since the last ship falls onto it from above and
+     lands with a bounce. That arrival is the whole Lego moment -- before,
+     the bricks just appeared. */
+  let lastSigs=null, drop=null, dropT0=0, dropH=0, landed=true, onLand=null;
+  const DROP_FALL=290, DROP_BOUNCE=230;
+  function setShip(pieces,TH,animate){
     if(model){scene.remove(model);}
-    model=buildShipGroup(pieces,TH);
+    const sigs=new Set(pieces.map(sig)), prev=lastSigs;
+    const inDrop=animate?(p=>!prev||!prev.has(sig(p))):null;
+    lastSigs=sigs;
+    model=buildShipGroup(pieces,TH,inDrop);
     scene.add(model);
+    drop=model.userData.drop||null;
+    if(drop){dropT0=performance.now();dropH=(frame?frameR:radius)*0.62;
+      drop.position.y=dropH;landed=false;}
     const box=new T.Box3().setFromObject(model);
     if(box.isEmpty()){radius=140;centre.set(0,0,0);}
     else{
       box.getCenter(centre);
       radius=Math.max(40,box.getSize(new T.Vector3()).length()*0.5);
-      pad.position.y=box.min.y-1.5;
+      if(!frame)pad.position.y=box.min.y-1.5;
     }
     hull=hullPoints(model);
     renderer.shadowMap.needsUpdate=true;
+  }
+  function stepDrop(){
+    if(!drop||drop.position.y===0&&landed)return;
+    const u=performance.now()-dropT0;
+    let y;
+    if(u<DROP_FALL){const k=u/DROP_FALL; y=dropH*(1-k*k);}             // falling, speeding up
+    else{
+      if(!landed){landed=true; if(onLand)onLand(dropPoint());}
+      const k=(u-DROP_FALL)/DROP_BOUNCE;
+      y=k>=1?0:dropH*0.075*Math.sin(Math.PI*k)*(1-k*0.4);              // one small hop
+    }
+    drop.position.y=y;
+    renderer.shadowMap.needsUpdate=true;
+  }
+  // where the new part came down, as a fraction of the canvas -- for the sparkle
+  const _dp=new T.Vector3(), _db=new T.Box3();
+  function dropPoint(){
+    if(!drop)return null;
+    _db.setFromObject(drop); if(_db.isEmpty())return null;
+    _db.getCenter(_dp); _dp.y=_db.min.y-drop.position.y; _dp.project(camera);
+    return {x:(_dp.x+1)/2, y:(1-_dp.y)/2};
   }
   function drag(dx,dy){
     yaw-=dx*0.009;
@@ -360,7 +458,9 @@ export function createForge(canvas,opt){
     }
     if(spin){yaw+=spin;spin*=0.96;if(Math.abs(spin)<0.0004)spin=0;}
     camera.aspect=w/h;
-    camera.fov=32;
+    // A longer lens on the build table: less perspective, so the near wingtip
+    // does not balloon and set the fit for the whole ship.
+    camera.fov=frame?25:32;
     camera.updateProjectionMatrix();
     /* Fit the eight corners of the model, not a sphere around it. A ship is
        wide and flat, so its bounding sphere is mostly empty air -- fitting
@@ -371,7 +471,16 @@ export function createForge(canvas,opt){
      .normalize();
     R.set(V.z,0,-V.x); if(R.lengthSq()<1e-6)R.set(1,0,0); R.normalize();
     U.crossVectors(R,V).normalize();
+    stepDrop();
     const vx=V.x,vy=V.y,vz=V.z, rx=R.x,ry=R.y,rz=R.z, ux=U.x,uy=U.y,uz=U.z;
+    if(frame){
+      const d=frameDistance(pitch,camera.aspect,vr,hr)/((opt&&opt.zoom)||1);
+      camera.position.copy(frameAim).addScaledVector(V,d);
+      camera.lookAt(frameAim);
+      lightAround(frameAim,frameR);
+      renderer.render(scene,camera);
+      return;
+    }
     /* Aim at the middle of the silhouette, not the middle of the model. They
        are different for a ship with long wings and a tall fin, and aiming at
        the model is what left a band of empty sky above it. */
@@ -393,19 +502,64 @@ export function createForge(canvas,opt){
     d*=1.05/((opt&&opt.zoom)||1);
     camera.position.copy(aim).addScaledVector(V,d);
     camera.lookAt(aim);
-    key.position.set(centre.x-radius*1.1, centre.y+radius*2.2, centre.z+radius*1.2);
-    key.target.position.copy(centre); key.target.updateMatrixWorld();
-    // Wrap the shadow frustum tight around the model: the same 1024 map spread
-    // over a quarter of the area is a far crisper contact shadow.
-    const sc=key.shadow.camera, e=radius*1.15;
-    if(sc.right!==e){sc.left=-e;sc.right=e;sc.top=e;sc.bottom=-e;
-      sc.near=radius*0.5; sc.far=radius*6; sc.updateProjectionMatrix();
-      renderer.shadowMap.needsUpdate=true;}
-    scene.add(key.target);
+    lightAround(centre,radius);
     renderer.render(scene,camera);
   }
+  // The lamp hangs over the table, not over the model -- on a fixed frame it
+  // stays put while parts arrive, so nothing on screen moves but the part.
+  function lightAround(c,r){
+    key.position.set(c.x-r*1.1, c.y+r*2.2, c.z+r*1.2);
+    if(!key.target.parent)scene.add(key.target);
+    if(!key.target.position.equals(c)){key.target.position.copy(c);key.target.updateMatrixWorld();
+      renderer.shadowMap.needsUpdate=true;}
+    // Wrap the shadow frustum tight around the model: the same 1024 map spread
+    // over a quarter of the area is a far crisper contact shadow.
+    const sc=key.shadow.camera, e=r*1.15;
+    if(sc.right!==e){sc.left=-e;sc.right=e;sc.top=e;sc.bottom=-e;
+      sc.near=r*0.5; sc.far=r*6; sc.updateProjectionMatrix();
+      renderer.shadowMap.needsUpdate=true;}
+  }
 
-  return {setShip, drag, glide, render,
+  /* FLIGHT SPRITES. The flight scene is still a 2D canvas, and its hitbox,
+     exhaust and everything else were placed with the old projection. So the
+     3D ship is rendered through a camera that reproduces that projection
+     exactly -- same elevation, same perspective distance, same scale at the
+     origin -- and the image drops into the slot the old sprite filled. The
+     one thing it adds is a real bank: the ship rolls into a turn, which a
+     sprite turned on a turntable could only ever fake.
+     tilt/rise/camd are the 2D projection's own constants. */
+  const _sv=new T.Vector3(), _su=new T.Vector3(), _sr=new T.Vector3(), _sp=new T.Vector3();
+  function sprite(roll,ppu,P2){
+    if(!model||!hull.length)return null;
+    const L=Math.hypot(P2.tilt,P2.rise), D=P2.camd/L;
+    _sv.set(0,P2.tilt/L,P2.rise/L); _su.set(0,P2.rise/L,-P2.tilt/L); _sr.set(1,0,0);
+    model.rotation.z=roll; model.updateMatrixWorld(true);
+    const cr=Math.cos(roll), sr=Math.sin(roll);
+    let X0=1e9,X1=-1e9,Y0=1e9,Y1=-1e9;
+    for(let i=0;i<hull.length;i+=3){
+      const x=hull[i]*cr-hull[i+1]*sr, y=hull[i]*sr+hull[i+1]*cr, z=hull[i+2];
+      const dep=D-(y*_sv.y+z*_sv.z), X=x*D/dep, Y=(y*_su.y+z*_su.z)*D/dep;
+      if(X<X0)X0=X;if(X>X1)X1=X;if(Y<Y0)Y0=Y;if(Y>Y1)Y1=Y;
+    }
+    X0-=3;X1+=3;Y0-=3;Y1+=3;
+    const w=Math.max(8,Math.round((X1-X0)*ppu)), h=Math.max(8,Math.round((Y1-Y0)*L*ppu));
+    renderer.setPixelRatio(1); renderer.setSize(w,h,false);
+    const near=2;
+    camera.position.copy(_sv).multiplyScalar(D); camera.up.set(0,1,0); camera.lookAt(0,0,0);
+    camera.projectionMatrix.makePerspective(X0*near/D,X1*near/D,Y1*near/D,Y0*near/D,near,6000);
+    camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
+    lightAround(centre,radius);
+    renderer.shadowMap.needsUpdate=true;
+    renderer.render(scene,camera);
+    model.rotation.z=0; model.updateMatrixWorld(true);
+    const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+    cv.getContext('2d').drawImage(renderer.domElement,0,0);
+    // in the 2D projection's units: x as is, y stretched by its tilt/rise length
+    return {cv, ox:X0, oy:-Y1*L, w:X1-X0, h:(Y1-Y0)*L};
+  }
+
+  return {setShip, setFrame, drag, glide, render, dropPoint, sprite,
+    set onLand(f){onLand=f;}, get dropping(){return !!drop&&!landed;},
     get yaw(){return yaw;}, set yaw(v){yaw=v;},
     get pitch(){return pitch;}, set pitch(v){pitch=v;},
     renderer, scene, camera};

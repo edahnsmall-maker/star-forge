@@ -12,8 +12,8 @@ const {chromium,devices}=require('playwright');const path=require('path');
   // does the UI fit, and is the launch button reachable?
   Object.assign(out, await p.evaluate(()=>{
     unlockPoints=20;buildUI();
-    const btn=document.getElementById('next').getBoundingClientRect();
-    const tabs=[...document.querySelectorAll('.slot-tab')].map(t=>t.getBoundingClientRect());
+    const btn=(document.querySelector('#cta>*')||document.getElementById('cta')).getBoundingClientRect();
+    const tabs=[...document.querySelectorAll('.step')].map(t=>t.getBoundingClientRect());
     const rows=new Set(tabs.map(t=>Math.round(t.top))).size;
     const lowest=Math.max(...tabs.map(t=>t.bottom));
     return {vw:innerWidth,vh:innerHeight,dpr:DPR,
@@ -22,17 +22,20 @@ const {chromium,devices}=require('playwright');const path=require('path');
       tabRows:rows, tabsBottom:Math.round(lowest),
       anyTabClipped:tabs.some(t=>t.right>innerWidth+1||t.left<-1)};}));
   // build a ship entirely through taps on the real controls
+  // the UI is rebuilt after every pick (and moves on to the next slot by
+  // itself), so look each control up fresh rather than holding handles
   for(let i=0;i<7;i++){
-    const tabs=await p.$$('.slot-tab');
-    if(tabs[i]){await tabs[i].tap();await p.waitForTimeout(80);
+    const tab=p.locator('.step[data-i="'+i+'"]');
+    if(await tab.count()){await tab.tap({force:true});await p.waitForTimeout(80);
       // pick the first option that is actually unlocked, from the strip
-      const opts=await p.$$('.opt:not([disabled])');
-      if(opts[0]){await opts[0].tap();await p.waitForTimeout(80);}}
+      const opt=p.locator('.opt:not([disabled])').first();
+      if(await opt.count()){await opt.tap({force:true});await p.waitForTimeout(450);}}
   }
   out.builtByTapping=await p.evaluate(()=>NEEDED.filter(k=>ship[k]<0).length===0);
   // launch and steer by touch
   await p.tap('#next');await p.waitForTimeout(200);
   const pw=await p.$('.pw'); if(pw)await pw.tap();
+  await p.waitForTimeout(100); await p.tap('#go');
   await p.waitForTimeout(500);
   out.inFlight=await p.evaluate(()=>scene===SCENE.FLY);
   const x0=await p.evaluate(()=>fly.shipX);
