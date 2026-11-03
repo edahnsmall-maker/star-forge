@@ -1,6 +1,6 @@
 const {chromium,devices}=require('playwright');const path=require('path');
 (async()=>{
- const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome'});
+ const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium-1243/chrome-linux64/chrome'});
  for(const name of ['iPhone 12','Pixel 5','iPhone SE']){
   const d=devices[name];
   const c=await b.newContext({...d, hasTouch:true, isMobile:true});

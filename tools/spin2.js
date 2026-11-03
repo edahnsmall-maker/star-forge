@@ -1,6 +1,6 @@
 const {chromium}=require('playwright');
 (async()=>{
- const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome'});
+ const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium-1243/chrome-linux64/chrome'});
  const p=await b.newPage({viewport:{width:420,height:420},deviceScaleFactor:1});
  await p.goto('file://'+require('path').resolve(__dirname,'../index.html'));
  await p.waitForTimeout(400);

@@ -22,7 +22,7 @@ const POLICY=`
    touchSteer=steer;
  };`;
 const run=async(url,label)=>{
- const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome'});
+ const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium-1243/chrome-linux64/chrome'});
  const p=await b.newPage({viewport:{width:430,height:860},deviceScaleFactor:1});
  p.on('pageerror',e=>console.log('ERR',e.message));
  await p.goto(url);await p.waitForTimeout(400);

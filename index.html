@@ -23,6 +23,14 @@
 <canvas id="c"></canvas>
 <div id="ui"></div>
 <div id="err"></div>
+<script type="module">
+/* The forge is WebGL now. It loads as a module beside the game rather than
+   inside it, so a browser that cannot run it simply leaves the old 2D path
+   in place instead of taking the whole page down with it. */
+import('./build3d.js').then(m=>{window.__mkForge=m.createForge;
+  dispatchEvent(new Event('forge3d'));})
+  .catch(e=>{window.__forgeErr=(e&&e.message)||String(e);});
+</script>
 <script>
 // A thrown error used to leave a blank canvas and no way to tell why.
 (function(){
@@ -1776,7 +1784,7 @@ function plateSprite(yaw,ss){
    SCENES
    ======================================================================= */
 const SHOW_PAD=false;   // the green baseplate. Flip to bring it back.
-const BUILD_ID='b38';
+const BUILD_ID='b39';
 const SCENE={BUILD:0,LOADOUT:1,FLY:2};
 let scene=SCENE.BUILD;
 let uiTop=176;          // bottom of the wrapped tab block, measured after layout
@@ -1911,6 +1919,18 @@ const NEEDED=['body','wings','cockpit','engine','defense','pilot'];
 const slotOpen=sl=>sl.list.some(it=>isUnlocked(it));
 const missingSlot=()=>SLOTS.find(s=>NEEDED.indexOf(s.key)>=0&&ship[s.key]<0&&slotOpen(s));
 let activeSlot=0,bob=0,buildYaw=0.35,yawSpin=0,dragging=false,dragX=0,dragged=false;
+// Drag up and down to look over the ship or under it. The 2D renderer had one
+// fixed tilt baked into every sprite; this one is a camera, so it can move.
+let buildPitch=0.40,dragY=0,pitchSet=false;
+/* A wide flat ship in a tall narrow band leaves most of the screen empty.
+   Looking further down over it turns its plan view towards the camera, which
+   is the shape a phone actually has. Once the player tilts it themselves,
+   their angle sticks. */
+function fitPitch(band){
+  if(pitchSet)return;
+  const a=W/Math.max(1,band);
+  buildPitch=Math.max(0.38,Math.min(0.72,0.40+(1.8-a)*0.43));
+}
 const isUnlocked=it=>unlockPoints>=(it.unlock||0);
 const seenParts=new Set();
 const isNew=(key,i,it)=>isUnlocked(it)&&(it.unlock||0)>0&&!seenParts.has(key+i);
@@ -1942,10 +1962,37 @@ function partPiecesFor(key,i){
  if(key==='pilot')return pilotAt(0,4,0,PILOTS[i]);
  return [];
 }
+/* The strip used to bake its thumbnails with the 2D renderer while the model
+   above them was drawn in 3D, and the mismatch was the most obvious thing on
+   the screen. They go through the same renderer now -- once each, kept as a
+   data URL, so the cost is a single frame per option. */
+let TFORGE=null,TFORGE_DEAD=false;
+function thumbForge(){
+ if(TFORGE||TFORGE_DEAD)return TFORGE;
+ if(!window.__mkForge)return null;
+ try{TFORGE=window.__mkForge(document.createElement('canvas'),{blit:true,pad:false,zoom:1.2,exposure:1.42});
+   TFORGE.yaw=0.62;TFORGE.pitch=0.46;}
+ catch(e){TFORGE_DEAD=true;}
+ return TFORGE;
+}
+function partThumb3D(ps){
+ const f=thumbForge(); if(!f||!ps.length)return null;
+ try{
+   f.setShip(ps,THEMES[ship.theme]);
+   f.yaw=0.62;f.pitch=0.46;
+   f.render(112,112,2,0);
+   return f.renderer.domElement.toDataURL();
+ }catch(e){TFORGE_DEAD=true;TFORGE=null;return null;}
+}
 function partThumb(key,i){
  const k=key+i+'_'+ship.theme+'_'+(key==='wings'?ship.body:0);
  let u=THUMB.get(k);if(u)return u;
  const ps=partPiecesFor(key,i);
+ const three=partThumb3D(ps);
+ if(three){THUMB.set(k,three);return three;}
+ // The module may still be in flight on the first paint. Caching the flat
+ // fallback here would freeze it in place for the rest of the session.
+ const mayArrive=!TFORGE_DEAD&&!window.__mkForge;
  const S=104,cv=document.createElement('canvas');cv.width=S;cv.height=S;
  const g=cv.getContext('2d');
  if(ps.length){
@@ -1957,8 +2004,10 @@ function partThumb(key,i){
    g.save();g.translate(S/2-(ax+bx2)*0.5*sc,S/2-(ay+by)*0.5*sc);g.scale(sc,sc);
    drawPieces(g,ps,THEMES[ship.theme],yaw);g.restore();
  }
- u=cv.toDataURL();THUMB.set(k,u);return u;
+ u=cv.toDataURL();if(!mayArrive)THUMB.set(k,u);return u;
 }
+// ...and when it lands, throw the flat ones away and draw the strip again.
+addEventListener('forge3d',()=>{THUMB.clear();buildUI();});
 function pickPart(i){
  const s=SLOTS[activeSlot];
  if(!isUnlocked(s.list[i]))return;
@@ -2013,7 +2062,7 @@ function buildUI(){
    }).join('')+
  '</div>'+
  '<div id="hint" style="position:absolute;top:152px;left:0;right:0;text-align:center;color:#6B8398;font-size:11px;letter-spacing:1px">'+
-   '↔ drag the ship to spin it</div>'+
+   '✥ drag the ship to turn it around</div>'+
    '<div style="position:absolute;bottom:4px;right:8px;color:#43596D;font-size:10px;letter-spacing:1px">'+BUILD_ID+'</div>'+
  '<div style="position:absolute;bottom:142px;left:0;right:0;display:flex;justify-content:center">'+
    (function(){const m=missingSlot();
@@ -2125,6 +2174,40 @@ function drawPartCard(box){
  ctx.fillText(sl.label,x+cw/2,y+ch-8);
  ctx.restore();
 }
+/* ---------- the forge, in three dimensions ----------------------------
+   The ship is drawn by a real WebGL renderer into its own surface, which is
+   then blitted into this frame. Everything else on screen -- sky, UI, the
+   part strip -- is still the 2D canvas, so only the model moved. If WebGL is
+   missing or the module fails to load, every call here returns false and the
+   old 2D path draws instead.
+   ---------------------------------------------------------------------- */
+let FORGE=null,FORGE_DEAD=false,FORGE_KEY='';
+function forge3(){
+  if(FORGE||FORGE_DEAD)return FORGE;
+  if(!window.__mkForge)return null;              // module still loading
+  try{FORGE=window.__mkForge(document.createElement('canvas'),{blit:true});}
+  catch(e){FORGE_DEAD=true;}
+  return FORGE;
+}
+const forgeKey=()=>[ship.cockpit,ship.wings,ship.body,ship.engine,ship.tail,
+  ship.defense,ship.pilot,ship.theme].join(',');
+/* The forge is the expensive half of this screen, so when frames get long it
+   gives up resolution before the UI does. Blitting a smaller buffer up to the
+   band costs a kid's tablet far less than a sharp one it cannot keep up with,
+   and at this size nobody sees the difference. */
+let fdpr=0;
+function drawShip3D(x,y,w,h,yaw,pitch){
+  const f=forge3(); if(!f||w<40||h<40)return false;
+  if(!fdpr)fdpr=Math.min(2,DPR||1);
+  try{
+    const k=forgeKey();
+    if(k!==FORGE_KEY){FORGE_KEY=k;f.setShip(shipPieces(),THEMES[ship.theme]);}
+    f.yaw=yaw; if(pitch!==undefined)f.pitch=pitch;
+    f.render(w,h,fdpr,0);
+    ctx.drawImage(f.renderer.domElement,x,y,w,h);
+  }catch(e){FORGE_DEAD=true;FORGE=null;return false;}
+  return true;
+}
 function drawBuild(){
  drawSky('build',[[0,'#101d47'],[0.55,'#0a1230'],[1,'#060a1c']],0.12);
  for(const s of stars){s.y+=0.15+s.z*0.3;s.tw+=0.05;if(s.y>H){s.y=0;s.x=Math.random()*W;}
@@ -2139,6 +2222,8 @@ function drawBuild(){
  const fp=shipFootprint();
  const bandTop=Math.max(150,uiTop),bandBot=H-206,band=Math.max(104,bandBot-bandTop);
  const empty=!shipPieces().length;
+ const use3d=!empty&&!!forge3();
+ if(use3d)fitPitch(band);
  // an empty pad is scenery, not the subject -- left to fill the band it swamps
  // the screen and swallows the caption
  const cap=empty?1.35:2.9;
@@ -2170,7 +2255,7 @@ function drawBuild(){
    const bp=plateSprite(buildYaw,bakeSS(sc));
    ctx.save();ctx.translate(cx,cy+24);ctx.scale(sc,sc);
    ctx.globalAlpha=0.95;ctx.drawImage(bp.cv,bp.ox,bp.oy,bp.w,bp.h);ctx.globalAlpha=1;ctx.restore();
- }else if(!empty){
+ }else if(!empty&&!use3d){                       // the 3D forge casts its own
    const pr=fp.pw*sc*0.46;
    const pg=ctx.createRadialGradient(cx,cy+34,pr*0.06,cx,cy+34,pr);
    pg.addColorStop(0,'rgba(2,5,16,0.50)');
@@ -2179,7 +2264,7 @@ function drawBuild(){
    ctx.save();ctx.translate(cx,cy+34);ctx.scale(1,0.30);ctx.translate(-cx,-(cy+34));
    ctx.fillStyle=pg;ctx.beginPath();ctx.arc(cx,cy+34,pr,0,7);ctx.fill();ctx.restore();
  }
- if(!empty){                                     // the model's own shadow
+ if(!empty&&!use3d){                             // the model's own shadow
    const q=Math.round(buildYaw*YAWQ)/YAWQ,ss=bakeSS(sc*(spinning?0.5:1),spinning?0.8:1.5);
    const sp=shipSprite(buildYaw,ss,true,spinning);
    if(!sp.empty){
@@ -2192,13 +2277,19 @@ function drawBuild(){
      ctx.restore();
    }
  }
- drawShip(ctx,cx,cy,sc,0.45+0.25*Math.sin(bob*2),buildYaw,true,spinning);
+ if(!use3d||!drawShip3D(0,bandTop,W,band,buildYaw,buildPitch))
+   drawShip(ctx,cx,cy,sc,0.45+0.25*Math.sin(bob*2),buildYaw,true,spinning);
  cardYaw+=0.0032;
 }
 // drag anywhere on the pad to spin the model
-addEventListener('pointerdown',e=>{if(scene!==SCENE.BUILD)return;dragging=true;dragged=false;dragX=e.clientX;});
+addEventListener('pointerdown',e=>{if(scene!==SCENE.BUILD)return;dragging=true;dragged=false;
+ dragX=e.clientX;dragY=e.clientY;});
 addEventListener('pointermove',e=>{if(!dragging)return;
- const dx=e.clientX-dragX;dragX=e.clientX;if(Math.abs(dx)>0.5)dragged=true;buildYaw+=dx*0.012;});
+ const dx=e.clientX-dragX,dy=e.clientY-dragY;dragX=e.clientX;dragY=e.clientY;
+ if(Math.abs(dx)>0.5||Math.abs(dy)>0.5)dragged=true;
+ buildYaw+=dx*0.012;
+ if(Math.abs(dy)>0.5)pitchSet=true;
+ buildPitch=Math.max(0.05,Math.min(1.15,buildPitch+dy*0.006));});
 addEventListener('pointerup',()=>{if(dragging){dragging=false;yawSpin=dragged?0.010:0;}});
 
 /* A gadget is a one-shot you set off yourself. Rocks come at you and the only
@@ -2958,8 +3049,14 @@ function loop(now){requestAnimationFrame(loop);
  if(fpsT>900){
    const fps=fpsN/(fpsT/1000);fpsN=0;fpsT=0;
    const k=scene===SCENE.FLY?'fly':'build',floor=scene===SCENE.FLY?2:1.5;
-   if(fps<38){if(++slowRun>=2&&dprCap[k]>floor){
-     dprCap[k]=Math.max(floor,dprCap[k]-0.5);slowRun=0;}}
+   if(fps<38){
+     if(++slowRun>=2){
+       if(scene===SCENE.BUILD&&FORGE&&fdpr>0.7){   // the forge gives first
+         fdpr=Math.max(0.7,fdpr-0.35);slowRun=0;
+       }else if(dprCap[k]>floor){
+         dprCap[k]=Math.max(floor,dprCap[k]-0.5);slowRun=0;}
+     }
+   }
    else slowRun=0;
  }
  applyDPR(Math.min(DEV(),scene===SCENE.FLY?dprCap.fly:dprCap.build));

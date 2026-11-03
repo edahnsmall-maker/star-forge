@@ -1,6 +1,6 @@
 const {chromium}=require('playwright');
 (async()=>{
- const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome'});
+ const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium-1243/chrome-linux64/chrome'});
  for(const [f,out] of [['/tmp/cmp/old.html','/tmp/cmp/a.png'],['/tmp/cmp/new.html','/tmp/cmp/b.png']]){
   const p=await b.newPage({viewport:{width:520,height:620},deviceScaleFactor:2});
   p.on('pageerror',e=>console.log('ERR',f,e.message));

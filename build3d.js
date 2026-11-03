@@ -86,10 +86,14 @@ function material(hex,clear){
   const k=hex+(clear?'|t':'');
   let m=MAT.get(k); if(m)return m;
   const col=new T.Color(hex).convertSRGBToLinear();
+  /* Real transmission makes three.js re-render the whole scene into a
+     separate buffer for every transmissive mesh. On a canopy the size of a
+     thumbnail nobody can tell it from plain tinted plastic with a hard coat,
+     and the tablet this is for certainly can. */
   m = clear
-    ? new T.MeshPhysicalMaterial({color:col, roughness:0.08, metalness:0,
-        transmission:0.82, thickness:1.6, ior:1.46, transparent:true, opacity:0.85,
-        clearcoat:1, clearcoatRoughness:0.04, envMapIntensity:1.3,
+    ? new T.MeshPhysicalMaterial({color:col, roughness:0.06, metalness:0,
+        transparent:true, opacity:0.62, depthWrite:false,
+        clearcoat:1, clearcoatRoughness:0.03, envMapIntensity:1.6,
         vertexColors:true})
     : new T.MeshPhysicalMaterial({color:col, roughness:0.30, metalness:0,
         clearcoat:0.85, clearcoatRoughness:0.09, reflectivity:0.5,
@@ -230,14 +234,22 @@ export function buildShipGroup(pieces,TH){
 }
 
 /* ---------- the scene --------------------------------------------------- */
-export function createForge(canvas){
+export function createForge(canvas,opt){
+  /* The game draws everything else into a 2D canvas -- sky, UI, part cards --
+     so the forge renders to its own surface and that surface is blitted into
+     the frame. Keeping the buffer lets the blit happen after the draw call. */
   const renderer=new T.WebGLRenderer({canvas, antialias:true, alpha:true,
-    powerPreference:'high-performance'});
+    preserveDrawingBuffer:!!(opt&&opt.blit), powerPreference:'high-performance'});
   renderer.outputColorSpace=T.SRGBColorSpace;
   renderer.toneMapping=T.ACESFilmicToneMapping;
-  renderer.toneMappingExposure=1.25;
+  renderer.toneMappingExposure=(opt&&opt.exposure)||1.25;
   renderer.shadowMap.enabled=true;
   renderer.shadowMap.type=T.PCFSoftShadowMap;
+  /* The light is fixed to the model, so spinning the camera cannot change
+     where the shadow falls. Re-rendering the shadow map every frame is the
+     single most expensive thing on this screen and it produces an identical
+     result; render it when the ship changes and leave it alone. */
+  renderer.shadowMap.autoUpdate=false;
 
   const scene=new T.Scene();
   const camera=new T.PerspectiveCamera(32,1,1,4000);
@@ -282,7 +294,9 @@ export function createForge(canvas){
     new T.ShadowMaterial({opacity:0.52, color:0x00040e}));
   pad.rotation.x=-Math.PI/2;
   pad.receiveShadow=true;
-  scene.add(pad);
+  // A thumbnail is a part on a card, not an object on a table: it wants no
+  // ground under it.
+  if(!(opt&&opt.pad===false))scene.add(pad);
 
   let model=null, radius=140, centre=new T.Vector3(), hull=new Float32Array(0);
   const V=new T.Vector3(), R=new T.Vector3(), U=new T.Vector3(), aim=new T.Vector3();
@@ -329,6 +343,7 @@ export function createForge(canvas){
       pad.position.y=box.min.y-1.5;
     }
     hull=hullPoints(model);
+    renderer.shadowMap.needsUpdate=true;
   }
   function drag(dx,dy){
     yaw-=dx*0.009;
@@ -375,7 +390,7 @@ export function createForge(canvas){
       const a=along+Math.abs(ex*rx+ey*ry+ez*rz)/th;  if(a>d)d=a;
       const b=along+Math.abs(ex*ux+ey*uy+ez*uz)/tv;  if(b>d)d=b;
     }
-    d*=1.05;
+    d*=1.05/((opt&&opt.zoom)||1);
     camera.position.copy(aim).addScaledVector(V,d);
     camera.lookAt(aim);
     key.position.set(centre.x-radius*1.1, centre.y+radius*2.2, centre.z+radius*1.2);
@@ -384,7 +399,8 @@ export function createForge(canvas){
     // over a quarter of the area is a far crisper contact shadow.
     const sc=key.shadow.camera, e=radius*1.15;
     if(sc.right!==e){sc.left=-e;sc.right=e;sc.top=e;sc.bottom=-e;
-      sc.near=radius*0.5; sc.far=radius*6; sc.updateProjectionMatrix();}
+      sc.near=radius*0.5; sc.far=radius*6; sc.updateProjectionMatrix();
+      renderer.shadowMap.needsUpdate=true;}
     scene.add(key.target);
     renderer.render(scene,camera);
   }

@@ -2,7 +2,7 @@ const {chromium}=require('playwright');
 const POLICY=require('fs').readFileSync(process.argv[2]+'/bot.js','utf8')
   .match(/const POLICY=`([\s\S]*?)`;/)[1];
 (async()=>{
- const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome'});
+ const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium-1243/chrome-linux64/chrome'});
  const p=await b.newPage({viewport:{width:430,height:860},deviceScaleFactor:1});
  p.on('pageerror',e=>console.log('ERR',e.message));
  await p.goto('file://'+require('path').resolve(__dirname,'../index.html'));
