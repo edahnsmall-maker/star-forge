@@ -1,0 +1,62 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Star Forge — 3D</title>
+<style>
+ html,body{margin:0;height:100%;background:#070b18;overflow:hidden;
+   font-family:'Trebuchet MS',system-ui,sans-serif;-webkit-user-select:none;user-select:none}
+ #sky{position:fixed;inset:0;background:
+   radial-gradient(120% 80% at 50% 8%, #1a2a56 0%, #0d1430 45%, #060a16 100%)}
+ canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+ #hud{position:fixed;left:0;right:0;top:0;padding:16px 18px;color:#cfe0f2;
+   font-size:13px;letter-spacing:2px;pointer-events:none;text-shadow:0 2px 6px rgba(0,0,0,.6)}
+ #tip{position:fixed;left:0;right:0;bottom:18px;text-align:center;color:#7e97ab;
+   font-size:12px;letter-spacing:1px;pointer-events:none}
+ #err{position:fixed;inset:0;z-index:9;display:none;background:#0b1330;color:#fff;
+   padding:18px;font:12px/1.5 ui-monospace,Menlo,monospace;white-space:pre-wrap;overflow:auto}
+</style></head>
+<body>
+<div id="sky"></div>
+<canvas id="c"></canvas>
+<div id="hud">STAR FORGE &nbsp;·&nbsp; 3D</div>
+<div id="tip">drag to turn it · pinch-free, it is really 3D now</div>
+<div id="err"></div>
+<script type="module">
+const oops=(what,e)=>{const d=document.getElementById('err');d.style.display='block';
+  d.textContent='Star Forge 3D hit a problem in '+what+':\n\n'+((e&&(e.message||e))+'')+
+  '\n\n'+((e&&e.stack)||'')+'\n\n'+innerWidth+'x'+innerHeight+' dpr '+(devicePixelRatio||1)+
+  '\n'+navigator.userAgent;};
+addEventListener('error',ev=>oops('startup',ev.error||ev.message));
+try{
+  const {createForge}=await import('./build3d.js');
+  const {ship,shipPieces,THEMES}=await import('./parts.js');
+
+  const cv=document.getElementById('c');
+  const forge=createForge(cv);
+
+  // whatever the page is asked to show, via ?c=0&w=1&b=0&e=1&d=0&p=0&t=0
+  const q=new URLSearchParams(location.search);
+  const n=(k,d)=>q.has(k)?parseInt(q.get(k),10):d;
+  ship.cockpit=n('c',0); ship.wings=n('w',1); ship.body=n('b',0);
+  ship.engine=n('e',1); ship.defense=n('d',0); ship.pilot=n('p',0);
+  ship.theme=n('t',0); ship.tail=-1;
+  forge.setShip(shipPieces(),THEMES[ship.theme]);
+
+  let down=false,lx=0,ly=0,vx=0;
+  cv.addEventListener('pointerdown',e=>{down=true;lx=e.clientX;ly=e.clientY;vx=0;
+    cv.setPointerCapture(e.pointerId);});
+  cv.addEventListener('pointermove',e=>{if(!down)return;
+    const dx=e.clientX-lx,dy=e.clientY-ly;lx=e.clientX;ly=e.clientY;
+    vx=-dx*0.009; forge.drag(dx,dy);});
+  addEventListener('pointerup',()=>{if(down){down=false;forge.glide(vx);}});
+
+  const dpr=()=>Math.min(2.5,devicePixelRatio||1);
+  function loop(t){
+    forge.render(innerWidth,innerHeight,dpr(),t);
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+  window.__forge=forge;window.__ready=true;
+}catch(e){oops('boot',e);}
+</script>
+</body></html>
