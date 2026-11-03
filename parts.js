@@ -196,7 +196,10 @@ const prop=(cx,cz,y,rad,col,role)=>{
  return o;
 };
 
-const pilotAt=(x,z,y,P)=>[
+// The 3D forge swaps these bricks for a real minifigure; the 2D renderer
+// still draws them. Every piece is marked, the first carries the seat.
+const tagFig=(ps,P,at)=>{ps.forEach((q,i)=>{q.fig=P;if(!i)q.figAt=at;});return ps;};
+const pilotAt=(x,z,y,P)=>tagFig([
  bx(x-0.7,z-0.7,1.4,1.4,y,2,P.shirt,'accent'),
  bx(x-0.7,z-0.7,1.4,1.4,y+1.4,0.7,P.belt||P.shirt,'dark'),
  cyl(x,z,0.55,y+2,1.3,P.skin||YEL,'accent',{n:10}),
@@ -209,15 +212,15 @@ const pilotAt=(x,z,y,P)=>[
  cyl(x,z,0.82,y+2.2,1.1,P.helmet,'trim',{n:10,ts:1.12}),
  cyl(x,z,0.78,y+3.3,0.9,P.helmet,'trim',{n:10}),
  bx(x-0.62,z-0.88,1.24,0.42,y+2.28,0.94,P.visor,'glass'),
-];
+],P,[x,z,y]);
 const PILOTS=[
- {name:'Rex',unlock:0,shirt:'#C91A09',helmet:'#F4F4F4',visor:'#AEEFEC',belt:'#1B2A34'},
- {name:'Nova',unlock:0,shirt:'#078BC9',helmet:'#F4F4F4',visor:'#AEEFEC',belt:'#1B2A34'},
- {name:'Blaze',unlock:3,shirt:'#FE8A18',helmet:'#F2CD37',visor:'#FF9A3D',belt:'#7B1C10'},
- {name:'Sprout',unlock:6,shirt:'#237841',helmet:'#BBE90B',visor:'#9BE854',belt:'#1B2A34'},
- {name:'Hex',unlock:10,shirt:'#8320B7',helmet:'#1B2A34',visor:'#C8A0E0',belt:'#DCBE61'},
- {name:'Sir Kit',unlock:13,shirt:'#A3A2A4',helmet:'#A3A2A4',visor:'#1B2A34',belt:'#7A5230',skin:'#DEC69C'},
- {name:'Merlin',unlock:16,shirt:'#5B3A8C',helmet:'#8320B7',visor:'#C8A0E0',belt:'#DCBE61'},
+ {name:'Rex',unlock:0,hat:'space',print:'space',face:'smile',shirt:'#C91A09',helmet:'#F4F4F4',visor:'#AEEFEC',belt:'#1B2A34'},
+ {name:'Nova',unlock:0,hat:'space',print:'space',face:'lashes',shirt:'#078BC9',helmet:'#F4F4F4',visor:'#AEEFEC',belt:'#1B2A34'},
+ {name:'Blaze',unlock:3,hat:'space',print:'flame',face:'grin',shirt:'#FE8A18',helmet:'#F2CD37',visor:'#FF9A3D',belt:'#7B1C10'},
+ {name:'Sprout',unlock:6,hat:'space',print:'leaf',face:'freckles',shirt:'#237841',helmet:'#BBE90B',visor:'#9BE854',belt:'#1B2A34'},
+ {name:'Hex',unlock:10,hat:'space',print:'hex',face:'brows',shirt:'#8320B7',helmet:'#1B2A34',visor:'#C8A0E0',belt:'#DCBE61'},
+ {name:'Sir Kit',unlock:13,hat:'knight',print:'crest',face:'smile',shirt:'#A3A2A4',helmet:'#A3A2A4',visor:'#1B2A34',belt:'#7A5230'},
+ {name:'Merlin',unlock:16,hat:'wizard',print:'stars',face:'beard',shirt:'#5B3A8C',helmet:'#8320B7',visor:'#C8A0E0',belt:'#DCBE61'},
 ];
 const COCKPITS=[
  // Classic Space explorer: long wedge prow, greebled flanks, crew ladder

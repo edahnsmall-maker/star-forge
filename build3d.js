@@ -188,6 +188,191 @@ function bakeAO(entries){
   }
 }
 
+/* ---------- minifigures --------------------------------------------------
+   The pilot used to be built out of bricks like everything else -- a box for
+   a body, a cylinder for a head, two black pixels for eyes -- and it read as
+   a bollard in a hat. A minifigure is not made of bricks, so it is not built
+   from them here either: a tapered torso with a printed chest, arms angled
+   forward onto the controls ending in C-shaped hands, a round yellow head
+   with a printed face and a stud on top, and the headgear that tells you who
+   it is. Origin is the seat; the face looks down -z, the way the ship flies.
+   Units are world units (a stud is 7); a real minifig at about 0.56 per mm.
+   ------------------------------------------------------------------------ */
+const FIGMAT=new Map();
+function plastic(hex,o){
+  const k=hex+JSON.stringify(o||{});
+  let m=FIGMAT.get(k); if(m)return m;
+  m=new T.MeshPhysicalMaterial(Object.assign({color:new T.Color(hex).convertSRGBToLinear(),
+    roughness:0.3,metalness:0,clearcoat:0.8,clearcoatRoughness:0.1,envMapIntensity:1.15},o||{}));
+  FIGMAT.set(k,m); return m;
+}
+const FIG={TW:8.4,BW:7.0,TH:6.8,TD:4.4,Y0:-3.6,HR:2.9,HH:5.2};
+// the head's side profile, bottom to top; v on the face texture runs by index
+const HEADP=[[0,0],[2.1,0],[2.75,0.22],[2.9,0.75],[2.9,1.5],[2.9,2.25],[2.9,3.0],[2.9,3.75],
+  [2.9,4.45],[2.75,4.98],[2.1,5.2],[0,5.2]];
+function headV(h){                     // canvas row for a height up the head
+  for(let i=3;i<8;i++){const a=HEADP[i][1],b=HEADP[i+1][1];
+    if(h>=a&&h<=b)return (1-(i+(h-a)/(b-a))/(HEADP.length-1))*256;}
+  return 128;
+}
+const FACETEX=new Map();
+function faceTexture(P){
+  const skin=P.skin||'#F2CD37', kind=P.face||'smile', k=skin+kind;
+  let t=FACETEX.get(k); if(t)return t;
+  const cv=document.createElement('canvas'); cv.width=512; cv.height=256;
+  const g=cv.getContext('2d'); g.fillStyle=skin; g.fillRect(0,0,512,256);
+  const cx=256, ey=headV(3.0), my=headV(1.75), by=headV(3.8);
+  g.fillStyle='#14181C'; g.strokeStyle='#14181C'; g.lineCap='round';
+  // eyes: two tall dots with a glint, the whole personality of a minifig
+  for(const s of [-1,1]){g.beginPath();g.ellipse(cx+s*27,ey,9.5,13.5,0,0,7);g.fill();}
+  g.fillStyle='#fff';for(const s of [-1,1]){g.beginPath();g.arc(cx+s*27-3,ey-5,3.2,0,7);g.fill();}
+  g.fillStyle='#14181C';
+  if(kind==='lashes'){g.lineWidth=3.5;for(const s of [-1,1]){
+    g.beginPath();g.moveTo(cx+s*33,ey-10);g.lineTo(cx+s*41,ey-17);g.stroke();
+    g.beginPath();g.moveTo(cx+s*35,ey-4);g.lineTo(cx+s*44,ey-7);g.stroke();}}
+  if(kind==='brows'||kind==='beard'){g.lineWidth=kind==='beard'?8:6;for(const s of [-1,1]){
+    g.beginPath();g.moveTo(cx+s*14,by+(kind==='brows'?6:2));g.lineTo(cx+s*42,by-(kind==='brows'?4:0));g.stroke();}}
+  if(kind==='freckles'){g.fillStyle='#C9822B';for(const s of [-1,1])for(const [dx,dy] of [[40,22],[48,28],[34,30]]){
+    g.beginPath();g.arc(cx+s*dx,ey+dy,2.6,0,7);g.fill();}g.fillStyle='#14181C';}
+  if(kind==='grin'){                   // a big open smile with teeth
+    g.beginPath();g.moveTo(cx-34,my-14);g.quadraticCurveTo(cx,my+44,cx+34,my-14);g.closePath();g.fill();
+    g.fillStyle='#fff';g.beginPath();g.moveTo(cx-28,my-11);g.quadraticCurveTo(cx,my+2,cx+28,my-11);
+    g.closePath();g.fill();
+  }else if(kind!=='beard'){            // the classic smile
+    g.lineWidth=7;g.beginPath();g.arc(cx,my-26,34,0.22*Math.PI,0.78*Math.PI);g.stroke();
+    if(kind==='lashes'){g.fillStyle='#C8323C';g.beginPath();g.ellipse(cx,my+6,9,4,0,0,7);g.fill();}
+  }
+  t=new T.CanvasTexture(cv); t.colorSpace=T.SRGBColorSpace; t.anisotropy=4;
+  FACETEX.set(k,t); return t;
+}
+const PRINTTEX=new Map();
+function chestTexture(P){
+  const kind=P.print||'space', k=kind+P.shirt;
+  let t=PRINTTEX.get(k); if(t)return t;
+  const W=256,H=Math.round(256*FIG.TH/FIG.TW), cv=document.createElement('canvas');
+  cv.width=W; cv.height=H; const g=cv.getContext('2d');
+  // only inside the torso's trapezoid; outside stays clear
+  const inset=(1-FIG.BW/FIG.TW)/2*W;
+  g.beginPath();g.moveTo(0,0);g.lineTo(W,0);g.lineTo(W-inset,H);g.lineTo(inset,H);g.closePath();g.clip();
+  const ink='#1B2A34', cx=W/2;
+  g.lineJoin='round';g.lineCap='round';
+  if(kind==='space'){                  // the classic space logo: a planet and an orbiting ship
+    g.fillStyle='#F2CD37';g.strokeStyle=ink;g.lineWidth=5;
+    g.beginPath();g.arc(cx,92,30,0,7);g.fill();g.stroke();
+    g.strokeStyle='#fff';g.lineWidth=8;g.beginPath();
+    g.ellipse(cx,92,58,19,-0.42,Math.PI*0.95,Math.PI*2.25);g.stroke();
+    g.fillStyle='#fff';g.beginPath();g.moveTo(cx+56,58);g.lineTo(cx+74,46);g.lineTo(cx+66,68);g.closePath();g.fill();
+  }else if(kind==='flame'){
+    const f=(s,c)=>{g.fillStyle=c;g.beginPath();g.moveTo(cx,150*s+(1-s)*95);
+      g.bezierCurveTo(cx-48*s,130,cx-30*s,80,cx-6*s,40+(1-s)*45);
+      g.bezierCurveTo(cx+4,70,cx+14*s,60,cx+18*s,38+(1-s)*50);
+      g.bezierCurveTo(cx+52*s,80,cx+44*s,130,cx,150*s+(1-s)*95);g.fill();};
+    f(1,'#C91A09');f(0.62,'#F2CD37');
+  }else if(kind==='leaf'){
+    g.fillStyle='#9BE854';g.strokeStyle=ink;g.lineWidth=5;g.beginPath();
+    g.moveTo(cx-44,140);g.bezierCurveTo(cx-50,60,cx+10,40,cx+50,36);
+    g.bezierCurveTo(cx+48,90,cx+10,140,cx-44,140);g.fill();g.stroke();
+    g.strokeStyle='#237841';g.lineWidth=5;g.beginPath();g.moveTo(cx-40,136);g.lineTo(cx+36,52);g.stroke();
+  }else if(kind==='hex'){
+    g.strokeStyle='#DCBE61';g.lineWidth=10;g.beginPath();
+    for(let i=0;i<6;i++){const a=Math.PI/6+i*Math.PI/3;g.lineTo(cx+Math.cos(a)*40,92+Math.sin(a)*40);}
+    g.closePath();g.stroke();g.fillStyle='#DCBE61';g.beginPath();g.arc(cx,92,10,0,7);g.fill();
+  }else if(kind==='crest'){            // a knight's shield
+    g.fillStyle='#0055BF';g.strokeStyle='#DCBE61';g.lineWidth=6;g.beginPath();
+    g.moveTo(cx-40,44);g.lineTo(cx+40,44);g.lineTo(cx+40,96);g.quadraticCurveTo(cx+40,136,cx,156);
+    g.quadraticCurveTo(cx-40,136,cx-40,96);g.closePath();g.fill();g.stroke();
+    g.fillStyle='#F2CD37';g.fillRect(cx-7,54,14,90);g.fillRect(cx-30,84,60,14);
+  }else if(kind==='stars'){
+    const star=(x,y,r)=>{g.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,rr=i%2?r*0.45:r;
+      g.lineTo(x+Math.cos(a)*rr,y+Math.sin(a)*rr);}g.closePath();g.fill();};
+    g.fillStyle='#F2CD37';star(cx-30,70,20);star(cx+34,108,15);star(cx-6,132,10);
+    g.beginPath();g.arc(cx+30,58,20,0,7);g.fill();g.fillStyle=P.shirt;g.beginPath();g.arc(cx+40,52,17,0,7);g.fill();
+  }
+  // a neckline, so it reads as a suit and not a box
+  g.strokeStyle='rgba(0,0,0,.28)';g.lineWidth=6;g.beginPath();g.moveTo(cx-26,0);g.lineTo(cx,24);g.lineTo(cx+26,0);g.stroke();
+  t=new T.CanvasTexture(cv); t.colorSpace=T.SRGBColorSpace; t.anisotropy=4;
+  PRINTTEX.set(k,t); return t;
+}
+const FIGGEO={};
+function figGeo(name,make){return FIGGEO[name]||(FIGGEO[name]=make());}
+function minifig(P){
+  const F=FIG, g=new T.Group(), skin=P.skin||'#F2CD37';
+  const add=(geo,mat,x,y,z,rx,ry,rz)=>{const m=new T.Mesh(geo,mat);m.position.set(x||0,y||0,z||0);
+    if(rx||ry||rz)m.rotation.set(rx||0,ry||0,rz||0);m.castShadow=m.receiveShadow=true;g.add(m);return m;};
+  // hips, then the torso: a trapezoid, wider at the shoulders
+  add(figGeo('hips',()=>new T.BoxGeometry(F.BW,1.3,F.TD*0.92)),plastic(P.belt||'#1B2A34'),0,F.Y0-0.65,0);
+  const torso=figGeo('torso',()=>{
+    const s=new T.Shape(); s.moveTo(-F.BW/2,0); s.lineTo(F.BW/2,0); s.lineTo(F.TW/2,F.TH); s.lineTo(-F.TW/2,F.TH); s.closePath();
+    const b=0.35, e=new T.ExtrudeGeometry(s,{depth:F.TD-b*2,bevelEnabled:true,bevelThickness:b,bevelSize:b,bevelSegments:2,curveSegments:4});
+    e.translate(0,0,-(F.TD-b*2)/2); return e;});
+  add(torso,plastic(P.shirt),0,F.Y0,0);
+  const chest=new T.Mesh(figGeo('chest',()=>new T.PlaneGeometry(F.TW,F.TH)),
+    new T.MeshPhysicalMaterial({map:chestTexture(P),transparent:true,alphaTest:0.5,roughness:0.3,clearcoat:0.8,clearcoatRoughness:0.1}));
+  chest.position.set(0,F.Y0+F.TH/2,-F.TD/2-0.03); chest.rotation.y=Math.PI; g.add(chest);
+  // neck, head (printed face), stud
+  const top=F.Y0+F.TH;
+  add(figGeo('neck',()=>new T.CylinderGeometry(1.75,1.75,0.8,20)),plastic(skin),0,top+0.4,0);
+  const head=figGeo('head',()=>new T.LatheGeometry(HEADP.map(q=>new T.Vector2(q[0],q[1])),32));
+  add(head,new T.MeshPhysicalMaterial({map:faceTexture(P),roughness:0.32,clearcoat:0.8,clearcoatRoughness:0.1,side:T.DoubleSide}),0,top+0.8,0);
+  const headTop=top+0.8+F.HH;
+  add(figGeo('stud',()=>new T.CylinderGeometry(1.35,1.35,0.9,18)),plastic(skin),0,headTop+0.45,0);
+  // arms reaching forward onto the controls, C-shaped hands at the ends
+  const armGeo=figGeo('arm',()=>{const c=new T.CapsuleGeometry(1.2,3.4,4,12);c.translate(0,-1.7,0);return c;});
+  const handGeo=figGeo('hand',()=>new T.TorusGeometry(0.95,0.5,8,16,Math.PI*1.55));
+  const wristGeo=figGeo('wrist',()=>new T.CylinderGeometry(0.62,0.62,0.9,12));
+  for(const s of [-1,1]){
+    const arm=new T.Group(); arm.position.set(s*(F.TW/2+0.4),top-1.4,0); arm.rotation.set(0.95,0,s*0.2);
+    const a=new T.Mesh(armGeo,plastic(P.shirt)); a.castShadow=a.receiveShadow=true; arm.add(a);
+    const w=new T.Mesh(wristGeo,plastic(skin)); w.position.y=-4.75; arm.add(w);
+    const h=new T.Mesh(handGeo,plastic(skin)); h.position.set(0,-5.9,0); h.rotation.set(0,Math.PI/2,-0.8);
+    h.castShadow=true; arm.add(h); g.add(arm);
+  }
+  const hat=P.hat||'space', hc=P.helmet||'#F4F4F4', base=top+0.8;
+  if(hat==='space'){
+    // the classic space helmet: a crown, a band with the face cut out, a visor
+    const crown=figGeo('crown',()=>new T.LatheGeometry([[3.48,0],[3.2,1.0],[2.6,1.75],[1.7,2.2],[0.6,2.42],[0,2.45]]
+      .map(q=>new T.Vector2(q[0],q[1])),32));
+    const band=figGeo('band',()=>new T.LatheGeometry([[3.45,0],[3.58,1.4],[3.58,3.0],[3.48,4.3]]
+      .map(q=>new T.Vector2(q[0],q[1])),28,Math.PI+1.0,Math.PI*2-2.0));
+    const hm=plastic(hc,{side:T.DoubleSide});
+    add(crown,hm,0,base+3.9,0); add(band,hm,0,base-0.4,0);
+    const visor=figGeo('visor',()=>new T.CylinderGeometry(3.85,3.85,4.2,24,1,true,Math.PI-1.12,2.24));
+    const vm=new T.MeshPhysicalMaterial({color:new T.Color(P.visor||'#AEEFEC').convertSRGBToLinear(),
+      transparent:true,opacity:0.22,roughness:0.03,clearcoat:1,side:T.DoubleSide,depthWrite:false,envMapIntensity:1.8});
+    const v=new T.Mesh(visor,vm); v.position.set(0,base+1.95,0); g.add(v);
+    for(const s of [-1,1])add(figGeo('pin',()=>new T.CylinderGeometry(0.55,0.55,0.6,12)),plastic('#6C6E68'),
+      s*3.75,base+3.6,0.3,0,0,Math.PI/2);
+    // air tanks on the back -- what you see of him from the chase camera
+    const tank=figGeo('tank',()=>new T.CapsuleGeometry(0.9,3.0,4,14));
+    for(const s of [-1,1])add(tank,plastic(hc),s*1.1,F.Y0+F.TH*0.55,F.TD/2+0.95);
+    add(figGeo('bracket',()=>new T.BoxGeometry(4.2,1.0,1.0)),plastic(hc),0,top-1.0,F.TD/2+0.45);
+  }else if(hat==='wizard'){
+    const brim=figGeo('brim',()=>new T.CylinderGeometry(4.9,4.9,0.45,32));
+    add(brim,plastic(hc),0,base+3.9,0,0.06,0,0);
+    add(figGeo('hband',()=>new T.CylinderGeometry(3.3,3.4,0.8,28)),plastic(P.belt||'#DCBE61'),0,base+4.4,0);
+    const cone=figGeo('cone',()=>{const c=new T.ConeGeometry(3.25,7.8,28,4);c.translate(0,3.9,0);return c;});
+    add(cone,plastic(hc),0,base+4.3,0,0.12,0,0.16);
+    // a long white beard over the chin and chest
+    const beard=figGeo('beard',()=>{const s=new T.Shape();
+      s.moveTo(-2.7,0);s.lineTo(2.7,0);s.quadraticCurveTo(2.9,-2.6,0.9,-4.8);s.lineTo(0,-5.8);s.lineTo(-0.9,-4.8);
+      s.quadraticCurveTo(-2.9,-2.6,-2.7,0);
+      const e=new T.ExtrudeGeometry(s,{depth:0.9,bevelEnabled:true,bevelThickness:0.25,bevelSize:0.25,bevelSegments:2});
+      e.translate(0,0,-0.45);return e;});
+    add(beard,plastic('#E6E6E6'),0,base+1.55,-F.HR-0.25);
+    add(figGeo('stache',()=>new T.CapsuleGeometry(0.42,3.4,4,10)),plastic('#E6E6E6'),0,base+1.75,-F.HR-0.35,0,0,Math.PI/2);
+  }else if(hat==='knight'){
+    const helm=figGeo('helm',()=>new T.LatheGeometry([[3.15,0],[3.3,0.6],[3.3,4.4],[3.05,5.4],[2.2,6.0],[0,6.15]]
+      .map(q=>new T.Vector2(q[0],q[1])),32));
+    const steel=plastic(hc,{metalness:0.3,roughness:0.26,clearcoat:0.7,side:T.DoubleSide});
+    add(helm,steel,0,base+0.15,0);
+    add(figGeo('slit',()=>new T.BoxGeometry(4.6,0.55,0.8)),plastic('#14181C'),0,base+3.1,-3.05);
+    add(figGeo('nose',()=>new T.BoxGeometry(0.6,3.2,0.6)),steel,0,base+2.2,-3.35);
+    const plume=figGeo('plume',()=>{const sp=new T.SphereGeometry(1,16,12);sp.scale(1.0,1.7,2.6);return sp;});
+    add(plume,plastic('#C91A09'),0,base+7.0,0.8,-0.25,0,0);
+  }
+  return g;
+}
+
 /* A piece's identity is its shape, place and base colour -- not the object,
    which the part tables rebuild on every call. Two ships share a piece when
    they share its signature, and that is how the forge knows which bricks just
@@ -196,7 +381,11 @@ export const sig=p=>[p.c,p.r||'',p.ax||'y',p.y,p.h,p.ts===undefined?1:p.ts,
   p.hs?p.hs.join(' '):'',p.pts.map(q=>q[0]+','+q[1]).join(' ')].join('|');
 
 export function buildShipGroup(pieces,TH,inDrop){
-  pieces=settle(pieces);
+  // the pilot's stand-in bricks are swapped for a real minifigure; they still
+  // count as covering the studs under him, and still decide when he drops in
+  const figs=[], cover=pieces;
+  for(const p of pieces)if(p.fig&&p.figAt)figs.push({P:p.fig,at:p.figAt,fall:!!(inDrop&&inDrop(p))});
+  pieces=settle(pieces.filter(p=>!p.fig));
   const grp=new T.Group(), drop=new T.Group();
   const aoList=[];
   const byColour=new Map();                        // colour+group -> {geos, studs}
@@ -214,7 +403,7 @@ export function buildShipGroup(pieces,TH,inDrop){
       for(let sx=Math.floor(bb[0])+0.5;sx<bb[2];sx++)
       for(let sz=Math.floor(bb[1])+0.5;sz<bb[3];sz++){
         if(!inPoly(p.pts,sx,sz))continue;
-        if(studCovered(pieces,p,sx,sz))continue;
+        if(studCovered(cover,p,sx,sz))continue;
         e.studs.push([sx*STUD, top, sz*STUD-CZ]);
       }
     }
@@ -236,6 +425,11 @@ export function buildShipGroup(pieces,TH,inDrop){
       im.castShadow=true; im.receiveShadow=true;
       into.add(im);
     }
+  }
+  for(const f of figs){
+    const m=minifig(f.P);
+    m.position.set(f.at[0]*STUD, f.at[2]*PLATE-CY, f.at[1]*STUD-CZ);
+    (f.fall?drop:grp).add(m);
   }
   if(drop.children.length){grp.add(drop);grp.userData.drop=drop;}
   return grp;
@@ -306,6 +500,7 @@ export function createForge(canvas,opt){
   // ground under it.
   if(!(opt&&opt.pad===false))scene.add(pad);
 
+  let zoomK=(opt&&opt.zoom)||1;
   let model=null, radius=140, centre=new T.Vector3(), hull=new Float32Array(0);
   const V=new T.Vector3(), R=new T.Vector3(), U=new T.Vector3(), aim=new T.Vector3();
 
@@ -332,7 +527,8 @@ export function createForge(canvas,opt){
           keep(x-STUD_R,y+STUD_H,z+STUD_R); keep(x+STUD_R,y+STUD_H,z+STUD_R);
         }
       }else{
-        for(let i=0;i<pos.count;i++){v.fromBufferAttribute(pos,i);keep(v.x,v.y,v.z);}
+        const mw=o.matrixWorld;
+        for(let i=0;i<pos.count;i++){v.fromBufferAttribute(pos,i).applyMatrix4(mw);keep(v.x,v.y,v.z);}
       }
     });
     return new Float32Array(out);
@@ -371,30 +567,40 @@ export function createForge(canvas,opt){
     pad.position.y=frameLow-1.5;
     renderer.shadowMap.needsUpdate=true;
   }
-  /* One distance for the whole turn, not one per frame: fitting each view
-     separately made the ship breathe in and out as it spun. Worst case over
-     a full revolution at this tilt and this screen shape, cached. */
-  function frameDistance(pt,aspect,vr,hr){
-    const k=Math.round(pt*40)+'|'+Math.round(aspect*24);
-    let d=frameD.get(k); if(d)return d;
-    // The band runs the full width of the screen, so at the single widest
-    // angle of a turn a wingtip may just touch the edge. Fitting that angle
-    // with room to spare left the ship small at every other angle.
-    const tv=Math.tan(vr), th=Math.tan(hr)*1.1, cp=Math.cos(pt), spt=Math.sin(pt);
-    d=frameR*0.4;
-    for(let j=0;j<24;j++){
-      const yw=j/24*Math.PI*2;
-      const vx=Math.sin(yw)*cp, vy=spt, vz=Math.cos(yw)*cp;
-      let rx=vz, rz=-vx; const rl=Math.hypot(rx,rz)||1; rx/=rl; rz/=rl;
-      const ux=-rz*vy, uy=rz*vx-rx*vz, uz=rx*vy;      // R x V
-      for(let i=0;i<frame.length;i+=3){
-        const ex=frame[i]-frameAim.x, ey=frame[i+1]-frameAim.y, ez=frame[i+2]-frameAim.z;
-        const along=ex*vx+ey*vy+ez*vz;
-        const a=along+Math.abs(ex*rx+ez*rz)/th;           if(a>d)d=a;
-        const b=along+Math.abs(ex*ux+ey*uy+ez*uz)/tv;     if(b>d)d=b;
-      }
+  /* The distance depends on the frame and the angle, never on the ship: a
+     part snapping on cannot move the camera. Fitting the single widest
+     angle of a whole turn left the ship small at every other angle (on a
+     phone the diagonal of a cross-shaped ship is half again its width), so
+     instead each angle gets its own fit, widened over a window either side
+     and blended, which turns it into a slow, gentle push-in as the ship
+     comes round rather than a jump. */
+  const NY=48;
+  function fitAt(yw,pt,tv,th){
+    const cp=Math.cos(pt), spt=Math.sin(pt);
+    const vx=Math.sin(yw)*cp, vy=spt, vz=Math.cos(yw)*cp;
+    let rx=vz, rz=-vx; const rl=Math.hypot(rx,rz)||1; rx/=rl; rz/=rl;
+    const ux=-rz*vy, uy=rz*vx-rx*vz, uz=rx*vy;      // R x V
+    let d=frameR*0.4;
+    for(let i=0;i<frame.length;i+=3){
+      const ex=frame[i]-frameAim.x, ey=frame[i+1]-frameAim.y, ez=frame[i+2]-frameAim.z;
+      const along=ex*vx+ey*vy+ez*vz;
+      const a=along+Math.abs(ex*rx+ez*rz)/th;           if(a>d)d=a;
+      const b=along+Math.abs(ex*ux+ey*uy+ez*uz)/tv;     if(b>d)d=b;
     }
-    frameD.set(k,d); return d;
+    return d;
+  }
+  function frameDistance(pt,aspect,vr,hr,yw){
+    const k=Math.round(pt*40)+'|'+Math.round(aspect*24);
+    let tab=frameD.get(k);
+    if(!tab){
+      const tv=Math.tan(vr), th=Math.tan(hr)*1.04, raw=[];
+      for(let j=0;j<NY;j++)raw.push(fitAt(j/NY*Math.PI*2,pt,tv,th));
+      tab=raw.map((_,j)=>{let m=0;for(let o=-2;o<=2;o++)m=Math.max(m,raw[(j+o+NY)%NY]);return m;});
+      frameD.set(k,tab);
+    }
+    const u=((yw/(Math.PI*2))%1+1)%1*NY, j=Math.floor(u)%NY, f=u-Math.floor(u);
+    const sm=f*f*(3-2*f);
+    return tab[j]*(1-sm)+tab[(j+1)%NY]*sm;
   }
 
   /* SNAP. Whatever is new since the last ship falls onto it from above and
@@ -410,16 +616,17 @@ export function createForge(canvas,opt){
     model=buildShipGroup(pieces,TH,inDrop);
     scene.add(model);
     drop=model.userData.drop||null;
+    model.updateMatrixWorld(true);
+    const box=new T.Box3().setFromObject(model);
+    hull=hullPoints(model);                         // measured with everything in its final place
     if(drop){dropT0=performance.now();dropH=(frame?frameR:radius)*0.62;
       drop.position.y=dropH;landed=false;}
-    const box=new T.Box3().setFromObject(model);
     if(box.isEmpty()){radius=140;centre.set(0,0,0);}
     else{
       box.getCenter(centre);
       radius=Math.max(40,box.getSize(new T.Vector3()).length()*0.5);
       if(!frame)pad.position.y=box.min.y-1.5;
     }
-    hull=hullPoints(model);
     renderer.shadowMap.needsUpdate=true;
   }
   function stepDrop(){
@@ -474,7 +681,7 @@ export function createForge(canvas,opt){
     stepDrop();
     const vx=V.x,vy=V.y,vz=V.z, rx=R.x,ry=R.y,rz=R.z, ux=U.x,uy=U.y,uz=U.z;
     if(frame){
-      const d=frameDistance(pitch,camera.aspect,vr,hr)/((opt&&opt.zoom)||1);
+      const d=frameDistance(pitch,camera.aspect,vr,hr,yaw)/zoomK;
       camera.position.copy(frameAim).addScaledVector(V,d);
       camera.lookAt(frameAim);
       lightAround(frameAim,frameR);
@@ -499,7 +706,7 @@ export function createForge(canvas,opt){
       const a=along+Math.abs(ex*rx+ey*ry+ez*rz)/th;  if(a>d)d=a;
       const b=along+Math.abs(ex*ux+ey*uy+ez*uz)/tv;  if(b>d)d=b;
     }
-    d*=1.05/((opt&&opt.zoom)||1);
+    d*=1.05/zoomK;
     camera.position.copy(aim).addScaledVector(V,d);
     camera.lookAt(aim);
     lightAround(centre,radius);
@@ -561,6 +768,6 @@ export function createForge(canvas,opt){
   return {setShip, setFrame, drag, glide, render, dropPoint, sprite,
     set onLand(f){onLand=f;}, get dropping(){return !!drop&&!landed;},
     get yaw(){return yaw;}, set yaw(v){yaw=v;},
-    get pitch(){return pitch;}, set pitch(v){pitch=v;},
+    get pitch(){return pitch;}, set pitch(v){pitch=v;}, set zoom(v){zoomK=v;},
     renderer, scene, camera};
 }
