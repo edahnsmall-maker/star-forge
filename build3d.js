@@ -295,7 +295,7 @@ function chestTexture(P){
 }
 const FIGGEO={};
 function figGeo(name,make){return FIGGEO[name]||(FIGGEO[name]=make());}
-function minifig(P){
+export function minifig(P){
   const F=FIG, g=new T.Group(), skin=P.skin||'#F2CD37';
   const add=(geo,mat,x,y,z,rx,ry,rz)=>{const m=new T.Mesh(geo,mat);m.position.set(x||0,y||0,z||0);
     if(rx||ry||rz)m.rotation.set(rx||0,ry||0,rz||0);m.castShadow=m.receiveShadow=true;g.add(m);return m;};

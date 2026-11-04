@@ -10,6 +10,8 @@
   html,body{font-synthesis:none;-webkit-font-smoothing:antialiased;width:100%;height:100%;overflow:hidden;background:#080f26;touch-action:none;
     user-select:none;-webkit-user-select:none;font-family:"Fredoka",ui-rounded,"SF Pro Rounded",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
   canvas{display:block;width:100%;height:100%}
+  #gl{position:fixed;left:0;top:0;display:none;z-index:0}
+  #c{position:fixed;left:0;top:0;z-index:1}
   #ui{position:fixed;inset:0;pointer-events:none;z-index:5}
   .pe{pointer-events:auto}
   .brick-btn{pointer-events:auto;background:#F2CD37;color:#1B2A34;border:none;border-radius:11px;
@@ -181,6 +183,7 @@
 </style>
 </head>
 <body>
+<canvas id="gl"></canvas>
 <canvas id="c"></canvas>
 <div id="ui"></div>
 <div id="err"></div>
@@ -189,7 +192,8 @@
    inside it, so a browser that cannot run it simply leaves the old 2D path
    in place instead of taking the whole page down with it. */
 import('./build3d.js').then(m=>{window.__mkForge=m.createForge;
-  dispatchEvent(new Event('forge3d'));})
+  dispatchEvent(new Event('forge3d'));
+  return import('./fly3d.js').then(f=>{window.__mkFlight=f.createFlight;});})
   .catch(e=>{window.__forgeErr=(e&&e.message)||String(e);});
 </script>
 <script>
@@ -353,6 +357,8 @@ const freezeSound=()=>{[2637,3136,2349,2794].forEach((f,i)=>bell(f,i*0.06,0.06,0
 const winSound=()=>{[392,523,659,784].forEach((f,i)=>pluck(f,i*0.1,0.16,0.3));
   [523,659,784,1047].forEach(f=>bell(f,0.44,0.08,1.2));
   noise({type:'highpass',f:6500,d:0.8,v:0.05,a:0.1,at:0.42,send:0.6});};
+const rescueSound=()=>{[523,659,784,1047,1319].forEach((f,i)=>pluck(f,i*0.06,0.17,0.24));
+  [1047,1568].forEach(f=>bell(f,0.32,0.12,0.7));};
 // a gentle wah-wah, not a buzzer: losing should feel like "aww", not "wrong"
 const loseSound=()=>{tone({f:392,f2:370,d:0.26,v:0.14,t:'triangle',send:0.3});
   tone({f:349,f2:330,d:0.26,v:0.14,t:'triangle',at:0.28,send:0.3});
@@ -1967,6 +1973,18 @@ function thruster(c,x,y,dx,dy,r,t,C,seed){
   c.quadraticCurveTo(x+dx*cl*0.5,y+dy*cl*0.5,x-px*cw,y-py*cw);
   c.closePath();c.fill();
   c.restore();}
+/* The flight field in 3D (fly3d.js): its own canvas under this one. When it
+   is up, this canvas is cleared to transparent each frame and only carries
+   what sits on top -- lasers, sparks, pickups, the HUD. */
+let FL=null,FL_DEAD=false;
+const glCv=document.getElementById('gl');
+function flight3(){
+ if(FL||FL_DEAD)return FL;
+ if(!window.__mkFlight)return null;
+ try{FL=window.__mkFlight(glCv,{rocks:ROCKS,boss:BOSS_BRICKS});}catch(e){FL_DEAD=true;FL=null;}
+ return FL;
+}
+function showGL(on){const v=on?'block':'none';if(glCv.style.display!==v)glCv.style.display=v;}
 /* The flight ship comes out of the same 3D renderer as the build screen,
    through a camera that matches the old projection, so the hitbox and the
    exhaust (both placed with prj) still line up with what you see. It banks
@@ -2098,7 +2116,7 @@ function plateSprite(yaw,ss){
    SCENES
    ======================================================================= */
 const SHOW_PAD=false;   // the green baseplate. Flip to bring it back.
-const BUILD_ID='b41';
+const BUILD_ID='b42';
 const SCENE={BUILD:0,LOADOUT:1,FLY:2};
 let scene=SCENE.BUILD;
 let uiBot=0;
@@ -2806,7 +2824,7 @@ function startMission(){
  // sailed through the wings. Measure the real sprite and use an ellipse,
  // generous enough to forgive wingtips.
  const flySc=Math.min(W,H)/360*0.52,sp0=shipSprite(0,2);
- fly={shipX:W/2,shipY:H*0.72,tilt:0,crystals:0,picked:0,goal,
+ fly={shipX:W/2,shipY:H*0.72,tilt:0,crystals:0,picked:0,goal,rescues:[],texts:[],rescued:0,aimX:null,
   hitW:Math.max(14,sp0.w*flySc*0.20),hitH:Math.max(14,sp0.h*flySc*0.24),
   shields:[],glide:6.4*turn*push*boost,
   obstacles:[],gems:[],particles:[],trail:[],boss:null,bolts:[],pulses:[],fireT:0,
@@ -2836,10 +2854,8 @@ function buildFlyUI(){
      '<div id="combo" class="combo"></div><div id="score" style="display:none"></div></div>'+
    '<div class="hud-l"><span class="pill lv">LEVEL '+level+(isBossLevel(level)?' 👹':'')+'</span></div>'+
  '</div>'+
- '<div class="pe" id="zL" style="position:absolute;left:0;top:70px;bottom:0;width:50%"></div>'+
- '<div class="pe" id="zR" style="position:absolute;right:0;top:70px;bottom:0;width:50%"></div>'+
- '<div id="aL" class="steer l">◀</div><div id="aR" class="steer r">▶</div>'+
- (fly.dist<60?'<div class="steerhint">hold a side to steer</div>':'')+
+ '<div class="pe" id="zT" style="position:absolute;left:0;right:0;top:70px;bottom:0;touch-action:none"></div>'+
+ (fly.dist<60?'<div class="steerhint">touch and drag to fly 👆</div>':'')+
  (function(){const G=GADGETS.find(g=>g.id===fly.gad)||GADGETS[0],on=fly.gCharge>0;
   return '<button id="gad" class="pe" style="position:absolute;bottom:calc(26px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);'+
    'width:84px;height:84px;border-radius:50%;border:none;cursor:pointer;'+
@@ -2848,13 +2864,13 @@ function buildFlyUI(){
    '<div style="font-size:32px;line-height:1">'+G.icon+'</div>'+
    '<div style="color:#fff;font-size:13px;font-weight:700;letter-spacing:1px;text-shadow:0 2px 0 rgba(0,0,0,.4)">'+
      (on?'●'.repeat(fly.gCharge):'—')+'</div></button>';})();
- const zL=document.getElementById('zL'),zR=document.getElementById('zR');
- const aL=document.getElementById('aL'),aR=document.getElementById('aR');
- const lit=v=>{if(aL)aL.classList.toggle('on',v<0);if(aR)aR.classList.toggle('on',v>0);};
- const set=v=>e=>{e.preventDefault();touchSteer=v;lit(v);};
- const clr=e=>{if(e)e.preventDefault();touchSteer=0;lit(0);};
- zL.ontouchstart=set(-1);zL.onmousedown=set(-1);zR.ontouchstart=set(1);zR.onmousedown=set(1);
- zL.ontouchend=clr;zR.ontouchend=clr;zL.onmouseup=clr;zR.onmouseup=clr;zL.onmouseleave=clr;zR.onmouseleave=clr;
+ const zT=document.getElementById('zT');
+ if(zT){
+   const aim=e=>{e.preventDefault();if(!fly.over)fly.aimX=e.clientX;};
+   zT.onpointerdown=e=>{try{zT.setPointerCapture(e.pointerId);}catch(_){}aim(e);};
+   zT.onpointermove=e=>{if(e.buttons||e.pointerType==='touch')aim(e);};
+   zT.onpointerup=zT.onpointercancel=e=>{fly.aimX=null;};
+ }
  const gb=document.getElementById('gad');
  if(gb){const go=e=>{e.preventDefault();e.stopPropagation();fireGadget();};
    gb.ontouchstart=go;gb.onmousedown=go;}
@@ -2867,7 +2883,7 @@ function fireGadget(){
    let n=0;
    for(const o of fly.obstacles){
      if(o.y<-20)continue;
-     o.dead=true;n++;spawnBurst(o.x,o.y,'#FFB870',18);
+     o.dead=true;n++;if(FL)FL.rock(o);spawnBurst(o.x,o.y,'#FFB870',18);
      if(Math.random()<0.35)fly.gems.push(mkGem(o.x,o.y));
    }
    fly.obstacles=fly.obstacles.filter(o=>!o.dead);
@@ -2893,7 +2909,13 @@ function updateFly(){
  let steer=0;
  if(keys['ArrowLeft']||keys['KeyA'])steer-=1;
  if(keys['ArrowRight']||keys['KeyD'])steer+=1;
- steer+=touchSteer;steer=Math.max(-1,Math.min(1,steer));
+ steer+=touchSteer;
+ /* Point to go. Holding one half of the screen to slide meant a six-year-old
+    overshot every time and pinned himself to the wall; now the ship heads for
+    the finger and eases in as it gets there. Top speed is the same as it
+    always was, so this is easier to steer, not faster to dodge. */
+ if(fly.aimX!=null)steer+=Math.max(-1,Math.min(1,(fly.aimX-fly.shipX)/38));
+ steer=Math.max(-1,Math.min(1,steer));
  fly.shipX+=steer*fly.glide;fly.shipX=Math.max(40,Math.min(W-40,fly.shipX));
  fly.tilt+=(steer*0.35-fly.tilt)*0.15;
  fly.speed=fly.baseSpeed+Math.min(2.5,fly.dist/2600);
@@ -2966,6 +2988,22 @@ function updateFly(){
    fly.gems.push(mkGem(gx+gap/2,-50));
  }
 
+ // the first one early, so he meets the idea in his first minute
+ if(fly.spawnT===Math.floor(every*5)||(fly.spawnT>every*5&&fly.spawnT%Math.floor(every*17)===0))
+   fly.rescues.push({x:spawnX(),y:-60,spin:Math.random()*7,P:PILOTS[(Math.random()*PILOTS.length)|0]});
+ for(const r of fly.rescues){
+   r.y+=fly.speed*0.75;r.spin+=0.025;
+   const dx=r.x-fly.shipX,dy=r.y-fly.shipY;
+   if(!r.got&&dx*dx+dy*dy<(50+fly.hitW*0.35)*(50+fly.hitW*0.35)){
+     r.got=true;fly.rescued++;fly.picked++;
+     rescueSound();spawnBurst(r.x,r.y,'#FFD23F',24);spawnRing(r.x,r.y,'#FFF1A8');
+     addText(r.x,r.y-30,'RESCUED!','#FFD23F',28);if(FL)FL.rescue(r);
+     const cz=document.getElementById('cz');if(cz)cz.textContent=Math.min(fly.picked,fly.goal)+' / '+fly.goal;
+     const gb=document.getElementById('gbar');if(gb)gb.style.width=Math.round(100*Math.min(1,fly.picked/fly.goal))+'%';
+     if(fly.picked>=fly.goal&&!(fly.boss&&fly.boss.hp>0))winMission();
+   }
+ }
+ fly.rescues=fly.rescues.filter(r=>!r.got&&r.y<H+60);
  for(const sp of fly.shields){
    sp.y+=fly.speed;sp.spin+=0.06;
    const dx=sp.x-fly.shipX,dy=sp.y-fly.shipY;
@@ -2987,7 +3025,7 @@ function updateFly(){
      pw.got=true;powerSound();spawnRing(pw.x,pw.y,pw.col);
      if(pw.kind==='bomb'){
        for(const o of fly.obstacles){if(o.y<-20)continue;
-         o.dead=true;spawnBurst(o.x,o.y,'#FFB870',14);
+         o.dead=true;if(FL)FL.rock(o);spawnBurst(o.x,o.y,'#FFB870',14);
          if(Math.random()<0.3)fly.gems.push(mkGem(o.x,o.y));}
        fly.obstacles=fly.obstacles.filter(o=>!o.dead);
        fly.eBolts.length=0;
@@ -3015,7 +3053,7 @@ function updateFly(){
        const base=g.gold?5:1;
        const gain=fly.scorePerGem*base*(1+Math.min(4,Math.floor(fly.combo/3)));
        fly.crystals+=gain;totalCrystals+=gain;fly.picked+=g.gold?3:1;
-       if(g.gold){goldSound();spawnBurst(g.x,g.y,'#F2CD37',22);spawnRing(g.x,g.y,'#F2CD37');}
+       if(g.gold){goldSound();spawnBurst(g.x,g.y,'#F2CD37',22);spawnRing(g.x,g.y,'#F2CD37');addText(g.x,g.y-24,'+3','#FFD23F',26);}
        else{grabSound(Math.min(6,fly.combo));spawnBurst(g.x,g.y,'#56E646',12);spawnRing(g.x,g.y,'#9BF08A');}
        const cz=document.getElementById('cz');if(cz){cz.textContent=Math.min(fly.picked,fly.goal)+' / '+fly.goal;cz.style.transform='scale(1.3)';setTimeout(()=>cz.style.transform='scale(1)',110);}
        const gbar=document.getElementById('gbar');if(gbar)gbar.style.width=Math.round(100*Math.min(1,fly.picked/fly.goal))+'%';
@@ -3092,7 +3130,7 @@ function updateFly(){
  const breakRock=(o,at)=>{
    spawnBurst(at.x,at.y,'#C8B49A',9);
    if(--o.hp<=0){
-     o.dead=true;spawnBurst(o.x,o.y,'#A08868',26);spawnRing(o.x,o.y,'#DEC69C');
+     o.dead=true;if(FL)FL.rock(o);spawnBurst(o.x,o.y,'#A08868',FL?12:26);spawnRing(o.x,o.y,'#DEC69C');
      rockSound();fly.shake=Math.max(fly.shake,5);
      if(Math.random()<0.22)fly.gems.push(mkGem(o.x,o.y));
      else if(Math.random()<0.14)fly.shields.push({x:o.x,y:o.y,spin:0});
@@ -3131,7 +3169,7 @@ function updateFly(){
    if(!b.dead&&fly.boss){const bs=fly.boss,dx=bs.x-b.x,dy=bs.y-b.y;
      if(dx*dx+dy*dy<bs.r*bs.r){b.dead=true;bs.hp-=b.dmg;bs.hitT=8;bossHitSound();
        spawnBurst(b.x,b.y,'#FE8A18',10);
-       if(bs.hp<=0){spawnBurst(bs.x,bs.y,'#F2CD37',50);fly.shake=16;fly.boss=null;
+       if(bs.hp<=0){spawnBurst(bs.x,bs.y,'#F2CD37',50);fly.shake=16;if(FL)FL.boss(bs);boomSound();addText(bs.x,bs.y,'BOSS DOWN!','#FFD23F',34);fly.boss=null;
          if(fly.picked>=fly.goal)winMission();}}}
  }
  for(const pu of fly.pulses){
@@ -3145,7 +3183,7 @@ function updateFly(){
      if(Math.abs(d-pu.r)<fly.boss.r){pu.hitBoss=true;fly.boss.hp-=pu.dmg;fly.boss.hitT=8;
        bossHitSound();
        if(fly.boss.hp<=0){spawnBurst(fly.boss.x,fly.boss.y,'#F2CD37',50);fly.shake=16;
-         fly.boss=null;if(fly.picked>=fly.goal)winMission();}}}
+         if(FL)FL.boss(fly.boss);boomSound();addText(fly.boss.x,fly.boss.y,'BOSS DOWN!','#FFD23F',34);fly.boss=null;if(fly.picked>=fly.goal)winMission();}}}
  }
  fly.bolts=fly.bolts.filter(b=>!b.dead&&b.y>-30&&b.x>-30&&b.x<W+30);
  fly.obstacles=fly.obstacles.filter(o=>!o.dead);
@@ -3177,7 +3215,7 @@ function winMission(){if(fly.over)return;fly.over=true;fly.win=true;fly.overT=0;
   winSound();spawnBurst(fly.shipX,fly.shipY,'#57A93B',40);}
 function loseMission(){if(fly.over)return;fly.over=true;fly.win=false;fly.overT=0;fly.shake=18;
   hiScore=Math.max(hiScore,totalCrystals);hiCombo=Math.max(hiCombo,fly.maxCombo);
-  loseSound();spawnBurst(fly.shipX,fly.shipY,'#C91A09',50);}
+  loseSound();if(FL)FL.ship();spawnBurst(fly.shipX,fly.shipY,'#C91A09',FL?24:50);}
 function afterMission(){
  if(fly.win){
    if(level>=MAX_LEVEL){scene=SCENE.BUILD;level=1;unlockPoints=Math.max(unlockPoints,MAX_LEVEL);activeSlot=0;buildUI();return;}
@@ -3190,8 +3228,22 @@ function nextUnlockPreview(){const nx=unlockPoints+1;
 
 /* ---------- flight rendering ---------- */
 function drawFly(){
+ const F3=flight3();
+ const shx=fly.shake>0.5?(Math.random()-0.5)*fly.shake:0,shy=fly.shake>0.5?(Math.random()-0.5)*fly.shake:0;
+ const shipS=Math.min(W,H)/360*0.52,blink=fly.invuln>0&&Math.floor(fly.invuln/5)%2===0;
+ if(F3){
+   try{
+     showGL(true);
+     F3.setShip(shipPieces(),THEMES[ship.theme],forgeKey());
+     F3.frame({W,H,dpr:DPR||1,speed:fly.speed,sky:Math.floor((level-1)/3),shakeX:shx,shakeY:shy,
+       rocks:fly.obstacles,gems:fly.gems,boss:fly.boss,rescues:fly.rescues,
+       ship:{x:fly.shipX,y:fly.shipY,s:shipS,roll:-fly.tilt*1.6,vis:!blink&&!(fly.over&&!fly.win)}});
+   }catch(e){FL_DEAD=true;FL=null;showGL(false);window.__oops&&console.error(e);}
+ }
  ctx.save();
- if(fly.shake>0.5)ctx.translate((Math.random()-0.5)*fly.shake,(Math.random()-0.5)*fly.shake);
+ if(shx||shy)ctx.translate(shx,shy);
+ if(FL){ctx.clearRect(-40,-40,W+80,H+80);}
+ else{
  drawSky('fly',[[0,'#0b1435'],[0.6,'#080f26'],[1,'#04060f']],fly.speed*0.4);
  for(const s of stars){s.y+=fly.speed*(0.3+s.z*0.9);if(s.y>H){s.y=0;s.x=Math.random()*W;}}
  for(let bk=0;bk<3;bk++){
@@ -3200,8 +3252,12 @@ function drawFly(){
    for(const s of stars){if(((s.z*3)|0)!==bk)continue;
      ctx.moveTo(s.x,s.y);ctx.lineTo(s.x,s.y+fly.speed*(1+s.z*2));}
    ctx.stroke();}
+ }
  const TC=THEMES[ship.theme];
 
+ if(!FL){
+ for(const r of fly.rescues){ctx.save();ctx.font='30px '+FONT;ctx.textAlign='center';ctx.textBaseline='middle';
+   ctx.fillText('🧑‍🚀',r.x,r.y);ctx.restore();}
  for(const g of fly.gems){if(!g.got)drawCrystal(g.x,g.y,g.r,g.spin,g.gold);}
  for(const o of fly.obstacles){
    drawRock(o);
@@ -3225,6 +3281,7 @@ function drawFly(){
      ctx.beginPath();ctx.arc(0,0,o.w*0.20*(0.7+t*0.5),0,7);ctx.fill();
      ctx.restore();
    }
+ }
  }
  // whatever the spitters have fired
  ctx.save();ctx.globalCompositeOperation='lighter';
@@ -3265,7 +3322,9 @@ function drawFly(){
    ctx.textAlign='left';ctx.textBaseline='alphabetic';
    ctx.restore();
  }
- if(fly.boss)drawBoss(fly.boss);
+ if(fly.boss){if(FL)drawBossBar(fly.boss);else drawBoss(fly.boss);}
+ // a stranded minifig calls for help
+ for(const r of fly.rescues)helpBubble(r);
  if(fly.freeze>0){
    ctx.save();ctx.globalAlpha=Math.min(0.22,fly.freeze/170*0.22);
    ctx.fillStyle='#78D9F0';ctx.fillRect(0,0,W,H);ctx.restore();
@@ -3290,10 +3349,14 @@ function drawFly(){
    ctx.beginPath();ctx.arc(pu.x,pu.y,pu.r-3,0,7);ctx.stroke();}
  ctx.restore();
 
- const blink=fly.invuln>0&&Math.floor(fly.invuln/5)%2===0;
- if(!(fly.over&&!fly.win)&&!blink)
-   if(!drawFlyShip(fly.shipX,fly.shipY,Math.min(W,H)/360*0.52,0.9,-fly.tilt*1.6))
-     drawShip(ctx,fly.shipX,fly.shipY,Math.min(W,H)/360*0.52,0.9,fly.tilt*1.5);
+ if(!(fly.over&&!fly.win)&&!blink){
+   if(FL)flames3D(0.9);
+   else if(!drawFlyShip(fly.shipX,fly.shipY,shipS,0.9,-fly.tilt*1.6))
+     drawShip(ctx,fly.shipX,fly.shipY,shipS,0.9,fly.tilt*1.5);}
+ // where the finger is: a faint ring on the ship's row, so you can see where it is going
+ if(fly.aimX!=null&&!fly.over){ctx.save();ctx.globalAlpha=0.35;ctx.strokeStyle='#FFD23F';ctx.lineWidth=3;
+   ctx.beginPath();ctx.arc(fly.aimX,fly.shipY+fly.hitH+26,12,0,7);ctx.stroke();ctx.restore();}
+ drawTexts();
 
  for(const p of fly.particles){
    if(p.ring){ctx.save();ctx.globalAlpha=p.life/p.max;ctx.globalCompositeOperation='lighter';
@@ -3324,7 +3387,7 @@ function endUI(){
  if(win){
    const nu=done?[]:unlockedNext().slice(0,4);
    body='<div class="end-t win">'+(done?'YOU WON! 🏆':'LEVEL CLEAR!')+'</div>'+
-     '<div class="end-s">'+g+' '+fly.picked+' gems</div>'+
+     '<div class="end-s">'+g+' '+fly.picked+' gems'+(fly.rescued?' &nbsp;🧑‍🚀 '+fly.rescued+' saved':'')+'</div>'+
      (nu.length?'<div class="lo-h" style="margin-top:6px">NEW PARTS UNLOCKED!</div><div class="newrow">'+
        nu.map(u=>'<div class="newp"><span class="art">'+(u.sl.key==='theme'
          ? '<span class="sw" style="margin:6px">'+[u.it.hull||GREY,u.it.accent||YEL,u.it.trim||WHITE,u.it.dark||BLACK]
@@ -3419,6 +3482,41 @@ function drawRock(o){
    ctx.drawImage(s.cv,s.ox,s.oy,s.w,s.h);}
  ctx.restore();
 }
+function flames3D(t){
+ if(ship.engine<0||!FL)return;const pal=THEMES[ship.theme],s=Math.min(W,H)/360*0.52;
+ for(const n of ENGINES[ship.engine].nozzles){
+   const a=FL.shipPoint(n.x*STUD,n.y*PLATE-CY,n.z*STUD-CZ),b=FL.shipPoint(n.x*STUD,n.y*PLATE-CY,(n.z+6)*STUD-CZ);
+   if(!a||!b)continue;let dx=b[0]-a[0],dy=b[1]-a[1];const m=Math.hypot(dx,dy);
+   if(m<0.001){dx=0;dy=1;}else{dx/=m;dy/=m;}
+   thruster(ctx,a[0],a[1],dx,dy,n.r*s,t,pal,n.x*7.3+n.z*1.7);}
+}
+function drawBossBar(b){
+ ctx.save();ctx.translate(b.x,b.y);
+ ctx.fillStyle='rgba(0,0,0,0.55)';ctx.fillRect(-b.r,-b.r-22,b.r*2,10);
+ ctx.fillStyle='#E0322A';ctx.fillRect(-b.r,-b.r-22,b.r*2*(b.hp/b.maxHp),10);
+ ctx.strokeStyle='#0a1330';ctx.lineWidth=2;ctx.strokeRect(-b.r,-b.r-22,b.r*2,10);
+ ctx.restore();
+}
+function helpBubble(r){
+ const x=r.x+26,y=r.y-40,bob=Math.sin(r.spin*3)*3;
+ ctx.save();ctx.translate(x,y+bob);
+ ctx.fillStyle='#fff';ctx.strokeStyle='#0a1330';ctx.lineWidth=2.5;
+ ctx.beginPath();ctx.roundRect?ctx.roundRect(-26,-14,52,26,10):ctx.rect(-26,-14,52,26);ctx.fill();ctx.stroke();
+ ctx.beginPath();ctx.moveTo(-12,11);ctx.lineTo(-20,22);ctx.lineTo(-2,11);ctx.closePath();ctx.fill();
+ ctx.fillStyle='#E0322A';ctx.font='700 14px '+FONT;ctx.textAlign='center';ctx.textBaseline='middle';
+ ctx.fillText('HELP!',0,0);ctx.restore();
+}
+// words that pop up where something good happened, rise and fade
+function addText(x,y,txt,col,size){if(fly.texts)fly.texts.push({x,y,txt,col:col||'#fff',size:size||22,life:50,max:50});}
+function drawTexts(){
+ if(!fly.texts||!fly.texts.length)return;
+ ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineJoin='round';
+ for(const t of fly.texts){const f=t.life/t.max,k=1+(1-f)*0.15,pop=f>0.85?(1-f)/0.15:1;
+   ctx.globalAlpha=Math.min(1,f*2.2);ctx.font='700 '+Math.round(t.size*k*(0.6+0.4*pop))+'px '+FONT;
+   ctx.strokeStyle='#0a1330';ctx.lineWidth=5;ctx.strokeText(t.txt,t.x,t.y);ctx.fillStyle=t.col;ctx.fillText(t.txt,t.x,t.y);
+   t.y-=0.9;t.life--;}
+ ctx.restore();fly.texts=fly.texts.filter(t=>t.life>0);
+}
 function drawBoss(b){
  const sc=b.r/95,yaw=Math.sin(b.sway)*0.35,cs=Math.cos(yaw),sn=Math.sin(yaw);
  ctx.save();ctx.translate(b.x,b.y);ctx.scale(sc,sc);
@@ -3467,7 +3565,7 @@ function loop(now){requestAnimationFrame(loop);
  catch(e){window.__oops('the game loop',e);}
  acc%=STEP;
  try{
-   if(scene===SCENE.FLY)drawFly();else drawBuild();
+   if(scene===SCENE.FLY)drawFly();else{showGL(false);drawBuild();}
  }catch(e){window.__oops(scene===SCENE.FLY?'flight':'the build screen',e);}
 }
 buildUI();requestAnimationFrame(loop);

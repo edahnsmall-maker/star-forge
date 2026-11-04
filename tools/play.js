@@ -26,9 +26,11 @@ const {chromium}=require('playwright');
  await p.click('#go');await p.waitForTimeout(400);
  log.push('scene after power pick: '+await p.evaluate(()=>scene===SCENE.FLY?'FLY (ok)':'WRONG'));
  // 4. steering hit-zones respond
- await p.evaluate(()=>{document.getElementById('zL').onmousedown({preventDefault(){}});});
+ // steering follows the finger: press near the left edge and hold
+ await p.mouse.move(20,600);await p.mouse.down();
  const x0=await p.evaluate(()=>fly.shipX);await p.waitForTimeout(350);
- const x1=await p.evaluate(()=>{const v=fly.shipX;document.getElementById('zL').onmouseup({preventDefault(){}});return v;});
+ const x1=await p.evaluate(()=>fly.shipX);await p.mouse.up();
+ log.push('finger released clears the target: '+(await p.evaluate(()=>fly.aimX===null)?'yes (ok)':'NO'));
  log.push('steer left moved ship: '+(x1<x0?'yes (ok)':'NO — '+x0+'->'+x1));
  // 5. win a level and confirm the unlock + level advance
  const before=await p.evaluate(()=>({lv:level,up:unlockPoints}));
